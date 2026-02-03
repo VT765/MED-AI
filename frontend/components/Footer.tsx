@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Heart } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 const footerLinks = {
   product: [
@@ -25,10 +25,8 @@ export function Footer() {
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-1">
-            <Link href="/" className="inline-flex items-center gap-2.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500 text-white">
-                <Heart className="h-5 w-5" aria-hidden />
-              </span>
+            <Link href="/" className="inline-flex items-center gap-2.5" aria-label="MedAI home">
+              <Logo size={40} className="h-10 w-10" />
               <span className="text-lg font-bold tracking-tight text-content-primary">
                 MedAI
               </span>

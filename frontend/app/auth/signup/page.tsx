@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { Heart } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,10 +78,9 @@ export default function SignupPage() {
         <Link
           href="/"
           className="mb-10 flex items-center justify-center gap-2.5 transition-opacity hover:opacity-90"
+          aria-label="MedAI home"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500 text-white shadow-soft">
-            <Heart className="h-5 w-5" aria-hidden />
-          </span>
+          <Logo size={40} className="h-10 w-10" />
           <span className="text-xl font-bold tracking-tight text-content-primary">
             MedAI
           </span>

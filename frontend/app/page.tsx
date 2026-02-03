@@ -127,28 +127,6 @@ export default function HomePage() {
               Chat with an AI doctor, analyze medical reports, and consult certified
               doctors globally at minimal cost — all in one place.
             </motion.p>
-            {mounted && !user && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.24 }}
-                className="mt-10 flex flex-wrap items-center justify-center gap-4"
-              >
-                <Link
-                  href="/auth/signup"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-button bg-primary-500 px-8 text-base font-semibold text-white shadow-card transition-all hover:bg-primary-600 hover:shadow-cardHover active:scale-[0.98]"
-                >
-                  Get started free
-                  <ArrowRight className="h-5 w-5" aria-hidden />
-                </Link>
-                <Link
-                  href="/auth/login"
-                  className="inline-flex h-12 items-center justify-center rounded-button border border-stone-300 bg-surface-elevated px-8 text-base font-medium text-content-primary transition-colors hover:bg-surface-muted"
-                >
-                  Log in
-                </Link>
-              </motion.div>
-            )}
             {mounted && user && (
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
@@ -261,33 +239,72 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Final CTA */}
-        {mounted && !user && (
-          <section className="border-t border-stone-200 bg-surface px-4 py-20 sm:py-24">
+        {/* How MedAI works – informational, not promotional */}
+        <section className="border-t border-stone-200 bg-surface px-4 py-20 sm:py-24">
+          <div className="mx-auto max-w-6xl">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="mx-auto max-w-2xl rounded-card border border-stone-200 bg-surface-elevated p-10 text-center shadow-card sm:p-12"
+              className="text-center"
             >
               <h2 className="text-2xl font-bold tracking-tight text-content-primary sm:text-3xl">
-                Ready to take control of your health?
+                How MedAI works
               </h2>
-              <p className="mt-4 text-content-secondary">
-                Join MedAI for AI-powered guidance and access to certified doctors worldwide.
+              <p className="mx-auto mt-4 max-w-2xl text-content-secondary">
+                MedAI combines AI guidance with certified medical expertise to support you
+                through every step of your health journey.
               </p>
-              <div className="mt-8">
-                <Link
-                  href="/auth/signup"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-button bg-primary-500 px-8 text-base font-semibold text-white shadow-card transition-all hover:bg-primary-600 hover:shadow-cardHover active:scale-[0.98]"
-                >
-                  Get started free
-                  <ArrowRight className="h-5 w-5" aria-hidden />
-                </Link>
-              </div>
             </motion.div>
-          </section>
-        )}
+            <motion.div
+              variants={container}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true }}
+              className="mt-12 grid gap-6 md:grid-cols-3"
+            >
+              <motion.div
+                variants={item}
+                className="rounded-card border border-stone-200 bg-surface-elevated p-6 shadow-soft"
+              >
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600">
+                  <Clock className="h-5 w-5" aria-hidden />
+                </span>
+                <h3 className="mt-4 font-semibold text-content-primary">Share your concern</h3>
+                <p className="mt-2 text-sm leading-relaxed text-content-secondary">
+                  Describe your symptoms, upload reports, or outline your health goals in a
+                  simple, structured way.
+                </p>
+              </motion.div>
+              <motion.div
+                variants={item}
+                className="rounded-card border border-stone-200 bg-surface-elevated p-6 shadow-soft"
+              >
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600">
+                  <Brain className="h-5 w-5" aria-hidden />
+                </span>
+                <h3 className="mt-4 font-semibold text-content-primary">AI interprets your data</h3>
+                <p className="mt-2 text-sm leading-relaxed text-content-secondary">
+                  Our AI assistant analyzes the information, highlights key points, and
+                  suggests questions to discuss with doctors.
+                </p>
+              </motion.div>
+              <motion.div
+                variants={item}
+                className="rounded-card border border-stone-200 bg-surface-elevated p-6 shadow-soft"
+              >
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600">
+                  <Globe className="h-5 w-5" aria-hidden />
+                </span>
+                <h3 className="mt-4 font-semibold text-content-primary">Coordinate next steps</h3>
+                <p className="mt-2 text-sm leading-relaxed text-content-secondary">
+                  Use MedAI to prepare for consultations, track follow-ups, and keep your
+                  health information organized over time.
+                </p>
+              </motion.div>
+            </motion.div>
+          </div>
+        </section>
       </main>
 
       <Footer />

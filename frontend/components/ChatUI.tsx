@@ -6,6 +6,7 @@ import { Send, Bot, User, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MOCK_AI_RESPONSES } from "@/lib/mockData";
+import { cn } from "@/lib/utils";
 
 export interface ChatMessage {
   id: string;
@@ -14,7 +15,11 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
-/** Chat container = 100vh minus navbar. Input bar always visible. No vertical overflow. */
+function formatTime(date: Date) {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/** Medical-grade chat UI: calm, trustworthy, distinct from dashboard. */
 export function ChatUI() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -26,15 +31,21 @@ export function ChatUI() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [inputError, setInputError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleSend = () => {
     const trimmed = input.trim();
-    if (!trimmed || isLoading) return;
+    setInputError(null);
+    if (!trimmed) {
+      setInputError("Please enter a message.");
+      return;
+    }
+    if (isLoading) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -66,70 +77,107 @@ export function ChatUI() {
   };
 
   return (
-    <div className="flex h-full min-h-0 max-h-full flex-col rounded-card border border-stone-200 bg-surface-elevated shadow-card overflow-hidden">
-      {/* Marquee disclaimer – sticky at top of chat area */}
-      <div className="sticky top-0 z-10 shrink-0 overflow-hidden border-b border-amber-200 bg-amber-50/90 py-2">
-        <div className="flex w-max animate-marquee items-center gap-2 text-sm font-medium text-amber-800">
-          <span aria-hidden>⚠️</span>
-          <span>AI medical guidance is not a substitute for certified doctors</span>
-          <span className="ml-8" aria-hidden>⚠️</span>
-          <span>AI medical guidance is not a substitute for certified doctors</span>
-          <span className="ml-8" aria-hidden>⚠️</span>
-          <span>AI medical guidance is not a substitute for certified doctors</span>
+    <div
+      className="flex h-full min-h-0 max-h-full flex-col overflow-hidden rounded-card border border-stone-200 bg-surface shadow-card"
+      role="region"
+      aria-label="AI Doctor chat"
+    >
+      {/* Clinical header – calm, no marquee */}
+      <div className="shrink-0 border-b border-stone-200 bg-surface-elevated px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700"
+              aria-hidden
+            >
+              <Bot className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-content-primary">AI Doctor</p>
+              <p className="text-xs text-content-secondary">Informational support only</p>
+            </div>
+          </div>
+          <p className="hidden text-[11px] text-amber-800 sm:block" role="status">
+            AI guidance is not a substitute for certified doctors.
+          </p>
         </div>
       </div>
 
-      {/* Messages – scrollable, no overflow of container */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <div className="space-y-4">
+      {/* Messages – gradient background, clear bubble separation */}
+      <div className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-b from-primary-50/30 via-surface to-surface px-4 py-4">
+        <div className="mx-auto flex max-w-2xl flex-col gap-4">
           <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
-              >
-                {msg.role === "assistant" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-surface-muted text-content-tertiary">
-                    <Bot className="h-4 w-4" aria-hidden />
-                  </div>
-                )}
-                <div
-                  className={`
-                    max-w-[85%] rounded-2xl px-4 py-2.5 text-sm
-                    ${
-                      msg.role === "user"
-                        ? "bg-primary-500 text-white"
-                        : "bg-surface-muted text-content-primary"
-                    }
-                  `}
+            {messages.map((msg) => {
+              const isUser = msg.role === "user";
+              return (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.2 }}
+                  className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
                 >
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
-                </div>
-                {msg.role === "user" && (
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700">
-                    <User className="h-4 w-4" aria-hidden />
+                  {!isUser && (
+                    <div
+                      className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700"
+                      aria-hidden
+                    >
+                      <Bot className="h-4 w-4" />
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-soft",
+                      isUser
+                        ? "rounded-br-md bg-primary-600 text-white"
+                        : "rounded-bl-md border border-stone-200 bg-surface-elevated text-content-primary"
+                    )}
+                  >
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                    <p
+                      className={cn(
+                        "mt-1.5 text-[11px]",
+                        isUser ? "text-primary-100/90" : "text-content-tertiary"
+                      )}
+                    >
+                      {formatTime(msg.timestamp)}
+                    </p>
                   </div>
-                )}
-              </motion.div>
-            ))}
+                  {isUser && (
+                    <div
+                      className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700"
+                      aria-hidden
+                    >
+                      <User className="h-4 w-4" />
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
+
           {isLoading && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex gap-3"
+              className="flex items-start gap-3"
             >
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-surface-muted text-content-tertiary">
-                <Bot className="h-4 w-4" aria-hidden />
+              <div
+                className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700"
+                aria-hidden
+              >
+                <Bot className="h-4 w-4" />
               </div>
-              <div className="rounded-2xl bg-gray-100 px-4 py-2.5">
+              <div
+                className="rounded-2xl rounded-bl-md border border-stone-200 bg-surface-elevated px-4 py-2.5 shadow-soft"
+                role="status"
+                aria-label="AI is typing"
+              >
                 <span className="inline-flex gap-1">
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-gray-500 [animation-delay:-0.3s]" />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-gray-500 [animation-delay:-0.15s]" />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-gray-500" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary-400 [animation-delay:-0.3s]" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary-400 [animation-delay:-0.15s]" />
+                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary-400" />
                 </span>
               </div>
             </motion.div>
@@ -138,40 +186,48 @@ export function ChatUI() {
         </div>
       </div>
 
-      {/* Input bar – always visible: text input (rounded, large), Mic (circular, tooltip), Send */}
+      {/* Sticky input – rounded, send icon, disabled/loading/error states */}
       <div className="shrink-0 border-t border-stone-200 bg-surface-elevated p-4">
+        {inputError && (
+          <p id="input-error" className="mb-2 text-xs text-red-600" role="alert">
+            {inputError}
+          </p>
+        )}
         <div className="flex items-center gap-2">
           <Input
             placeholder="Describe your symptoms or ask a question..."
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              setInputError(null);
+            }}
             onKeyDown={handleKeyDown}
-            className="min-h-[48px] flex-1 rounded-input text-base"
+            className={cn(
+              "min-h-[48px] flex-1 rounded-xl border-stone-200 text-base focus-visible:ring-primary-500",
+              inputError && "border-red-300 focus-visible:ring-red-500"
+            )}
             disabled={isLoading}
+            aria-invalid={!!inputError}
+            aria-describedby={inputError ? "input-error" : undefined}
           />
-          <div className="relative group">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-12 w-12 rounded-full"
-              disabled
-              aria-label="Voice input (coming soon)"
-            >
-              <Mic className="h-5 w-5" aria-hidden />
-            </Button>
-            <span className="pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-              Voice Input (Coming Soon)
-            </span>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-12 w-12 shrink-0 rounded-full"
+            disabled
+            aria-label="Voice input (coming soon)"
+          >
+            <Mic className="h-5 w-5" aria-hidden />
+          </Button>
           <Button
             type="button"
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="h-12 w-12 shrink-0 rounded-xl"
+            className="h-12 w-12 shrink-0 rounded-xl bg-primary-600 hover:bg-primary-700"
             aria-label="Send message"
           >
-            <Send className="h-5 w-5" />
+            <Send className="h-5 w-5" aria-hidden />
           </Button>
         </div>
       </div>

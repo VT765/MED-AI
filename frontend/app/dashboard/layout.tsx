@@ -23,9 +23,12 @@ import { Sidebar } from "@/components/Sidebar";
 import { getCurrentUser, clearUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-const navItems = [
+const primaryNav = [
   { href: "/", label: "Home", icon: Home },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+];
+
+const careNav = [
   { href: "/dashboard/chat", label: "AI Doctor", icon: MessageCircle },
   { href: "/dashboard/reports", label: "Medical Reports", icon: FileText },
   { href: "/dashboard/appointment", label: "Book Doctor", icon: Calendar },
@@ -44,7 +47,9 @@ export default function DashboardLayout({
   const [user, setUser] = useState<ReturnType<typeof getCurrentUser>>(null);
   const [mounted, setMounted] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileCareOpen, setMobileCareOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileCareRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setUser(getCurrentUser());
@@ -59,9 +64,9 @@ export default function DashboardLayout({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false);
-      }
+      const target = e.target as Node;
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) setDropdownOpen(false);
+      if (mobileCareRef.current && !mobileCareRef.current.contains(target)) setMobileCareOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -101,27 +106,89 @@ export default function DashboardLayout({
         className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-stone-200 bg-surface-elevated px-2 py-2 lg:hidden"
         aria-label="Mobile navigation"
       >
-        {navItems
-          .filter((item) => !item.disabled)
-          .slice(0, 5)
-          .map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-button px-2 py-2 text-xs font-medium transition-colors",
-                  isActive ? "text-primary-600" : "text-content-tertiary hover:text-content-primary"
-                )}
-                aria-current={isActive ? "page" : undefined}
+        {primaryNav.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex flex-col items-center gap-1 rounded-button px-2 py-2 text-xs font-medium transition-colors",
+                isActive ? "text-primary-600" : "text-content-tertiary hover:text-content-primary"
+              )}
+              aria-current={isActive ? "page" : undefined}
+            >
+              <Icon className="h-5 w-5" aria-hidden />
+              <span className="truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+
+        <div className="relative" ref={mobileCareRef}>
+          <button
+            type="button"
+            onClick={() => setMobileCareOpen((o) => !o)}
+            className={cn(
+              "flex flex-col items-center gap-1 rounded-button px-2 py-2 text-xs font-medium transition-colors",
+              mobileCareOpen ? "text-primary-600" : "text-content-tertiary hover:text-content-primary"
+            )}
+            aria-expanded={mobileCareOpen}
+            aria-haspopup="true"
+            aria-label="Care services menu"
+          >
+            <MessageCircle className="h-5 w-5" aria-hidden />
+            <span className="truncate">Care</span>
+          </button>
+          <AnimatePresence>
+            {mobileCareOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.15 }}
+                role="menu"
+                aria-label="Care services"
+                className="absolute bottom-full left-1/2 z-50 mb-2 w-52 -translate-x-1/2 rounded-card border border-stone-200 bg-surface-elevated py-1 shadow-cardHover"
               >
-                <Icon className="h-5 w-5" aria-hidden />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
+                {careNav.map((item) => {
+                  const Icon = item.icon;
+                  const isDisabled = item.disabled;
+                  const isActive = pathname === item.href;
+                  if (isDisabled) {
+                    return (
+                      <div
+                        key={item.href}
+                        role="menuitem"
+                        aria-disabled="true"
+                        className="flex items-center gap-2 px-3 py-2 text-xs text-content-tertiary"
+                      >
+                        <Icon className="h-4 w-4" aria-hidden />
+                        <span>{item.label}</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      role="menuitem"
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset",
+                        isActive ? "bg-primary-50 text-primary-700" : "text-content-primary hover:bg-surface-muted"
+                      )}
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => setMobileCareOpen(false)}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden />
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </nav>
 
       <div className="flex flex-1 flex-col lg:ml-0">

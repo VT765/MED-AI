@@ -8,6 +8,10 @@ export const metadata: Metadata = {
   title: "MedAI – Your AI-Powered Health Assistant",
   description:
     "Chat with an AI doctor, analyze medical reports, and consult certified doctors globally at minimal cost.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

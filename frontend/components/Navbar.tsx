@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/Logo";
 import { getCurrentUser, type User } from "@/lib/auth";
 import { useState, useEffect } from "react";
 
@@ -23,10 +24,9 @@ export function Navbar() {
         <Link
           href="/"
           className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
+          aria-label="MedAI home"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-500 text-white shadow-soft">
-            <Heart className="h-5 w-5" aria-hidden />
-          </span>
+          <Logo size={40} className="h-10 w-10" />
           <span className="text-xl font-bold tracking-tight text-content-primary">
             MedAI
           </span>
