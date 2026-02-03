@@ -1,8 +1,0 @@
-export default function SettingsPage() {
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
-      <p className="mt-2 text-gray-600">Placeholder. Add app settings here.</p>
-    </div>
-  );
-}
