@@ -1,4 +1,0 @@
-Changes in the UI :
-1. Change the Logo / Icon of the website to the uploaded image with this prompt 
-2. Remove the "Get Started free"
-
