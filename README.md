@@ -1,4 +1,4 @@
-# 🏥 MedAI — AI-Powered Medical Assistant Platform
+# 🏥 MedAI — AI-Powered Medical Assistant Platform experiment
 
 MedAI is an **AI-driven healthcare assistance platform** designed to help users **analyze medical reports, consult an AI doctor through conversation, manage health-related services, and make informed medical decisions** — all from a single, unified interface.
 
