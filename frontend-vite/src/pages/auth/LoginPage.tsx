@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockLogin } from "@/lib/auth";
+import { login } from "@/lib/auth";
 
 const loginSchema = z.object({
   email: z.string().email("Valid email required"),
@@ -26,10 +26,11 @@ export function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setError(null);
     try {
-      mockLogin(data.email, data.password);
+      await login(data.email, data.password);
       navigate("/dashboard");
-    } catch {
-      setError("Login failed. Please try again.");
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(err.message || "Login failed. Please try again.");
     }
   };
 

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockSignup } from "@/lib/auth";
+import { signup } from "@/lib/auth";
 
 const signupSchema = z
   .object({
@@ -37,10 +37,16 @@ export function SignupPage() {
   const onSubmit = async (data: SignupFormValues) => {
     setError(null);
     try {
-      mockSignup({ username: data.username, email: data.email, phone: data.phone });
+      await signup({
+        username: data.username,
+        email: data.email,
+        phone: data.phone,
+        password: data.password
+      });
       navigate("/dashboard");
-    } catch {
-      setError("Sign up failed. Please try again.");
+    } catch (err: any) {
+      console.error("Signup error:", err);
+      setError(err.message || "Sign up failed. Please try again.");
     }
   };
 
