@@ -2,9 +2,10 @@
  * Real authentication utilities using Backend API.
  */
 
+import { apiUrl } from "./api";
+
 const AUTH_KEY = "medai_user";
 const TOKEN_KEY = "medai_token";
-const API_URL = "http://localhost:3000/api";
 
 export interface User {
   id: string;
@@ -45,8 +46,7 @@ export function isAuthenticated(): boolean {
 }
 
 export async function login(email: string, password: string): Promise<User> {
-  console.log("Attempting login to:", `${API_URL}/auth/login`);
-  const res = await fetch(`${API_URL}/auth/login`, {
+  const res = await fetch(apiUrl("/api/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -79,7 +79,7 @@ export async function signup(data: {
   phone?: string;
   password?: string; // Add password to type
 }): Promise<User> {
-  const res = await fetch(`${API_URL}/auth/signup`, {
+  const res = await fetch(apiUrl("/api/auth/signup"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

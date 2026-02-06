@@ -1,7 +1,32 @@
-backend/node_modules
+# Dependencies
 node_modules/
-.cache/
-.env
+
+# Build outputs
 dist/
 build/
+.cache/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Logs and debug
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+Optional: uncomment to ignore lockfiles (not recommended; commit for reproducible installs)
 package-lock.json
+pnpm-lock.yaml
+yarn.lock

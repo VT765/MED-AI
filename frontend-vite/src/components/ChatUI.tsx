@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { getToken } from "@/lib/auth";
+import { apiUrl } from "@/lib/api";
 
 export interface ChatMessage {
   id: string;
@@ -50,7 +51,7 @@ export function ChatUI() {
 
     try {
       const token = getToken();
-      const res = await fetch("http://localhost:3000/api/documents/upload", {
+      const res = await fetch(apiUrl("/api/documents/upload"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -101,7 +102,7 @@ export function ChatUI() {
 
     try {
       const token = getToken();
-      const res = await fetch("http://localhost:3000/api/chat", {
+      const res = await fetch(apiUrl("/api/chat"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

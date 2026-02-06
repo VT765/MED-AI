@@ -1,11 +1,9 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "backend npm",
-  "license": "ISC",
-  "author": "Varun Thacker",
+  "private": true,
   "type": "module",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
@@ -27,6 +25,5 @@
     "openai": "^6.18.0",
     "pdf-parse": "^2.4.5",
     "zod": "^3.25.76"
-  },
-  "keywords": []
+  }
 }
