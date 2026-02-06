@@ -13,6 +13,11 @@ import path from "path";
 import OpenAI from "openai";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
+import CSSMatrix from "@thednp/dommatrix";
+
+if (typeof globalThis.DOMMatrix === "undefined") {
+  globalThis.DOMMatrix = CSSMatrix;
+}
 
 const require = createRequire(import.meta.url);
 const pdf = require("pdf-parse");
@@ -21,8 +26,9 @@ const pdf = require("pdf-parse");
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Try loading environment variables from project root first, then ./.env
+// Load .env from backend folder, then project root, so either location works
 dotenv.config({ path: path.resolve(__dirname, "./.env") });
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 dotenv.config();
 
 if (!process.env.MONGO_URI) {
@@ -32,8 +38,9 @@ if (!process.env.MONGO_URI) {
 }
 
 if (!process.env.JWT_SECRET) {
-  console.error(
-    "JWT_SECRET is not set. Please add JWT_SECRET to your .env so authentication tokens can be generated."
+  process.env.JWT_SECRET = "dev-secret-change-in-production-" + Math.random().toString(36).slice(2);
+  console.warn(
+    "JWT_SECRET is not set in .env. Using a dev-only secret. Add JWT_SECRET to your .env for production."
   );
 }
 
@@ -45,9 +52,9 @@ if (!process.env.OPENAI_API_KEY) {
 
 connectDB();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -71,6 +78,12 @@ app.post("/api/auth/signup", async (req, res) => {
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: "All fields required" });
+  }
+
+  if (!process.env.JWT_SECRET) {
+    return res.status(503).json({
+      message: "Server misconfigured. Add JWT_SECRET to your .env file.",
+    });
   }
 
   try {
@@ -113,6 +126,12 @@ app.post("/api/auth/signup", async (req, res) => {
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
 
+  if (!process.env.JWT_SECRET) {
+    return res.status(503).json({
+      message: "Server misconfigured. Add JWT_SECRET to your .env file.",
+    });
+  }
+
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -140,6 +159,7 @@ app.post("/api/auth/login", async (req, res) => {
       }
     });
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -195,6 +215,12 @@ app.post("/api/chat", protect, async (req, res) => {
 
     if (document.user.toString() !== req.user._id.toString()) {
       return res.status(401).json({ message: "Not authorized to access this document" });
+    }
+
+    if (!openai) {
+      return res.status(503).json({
+        message: "AI chat is not available. Add OPENAI_API_KEY to your .env to enable it.",
+      });
     }
 
     // Context window limit handling (rudimentary)

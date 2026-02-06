@@ -4,6 +4,7 @@
   "scripts": {
     "dev:backend": "npm run start -w backend",
     "dev:frontend": "npm run dev -w frontend-vite",
+    "build": "npm run build -w frontend-vite",
     "build:frontend": "npm run build -w frontend-vite",
     "preview": "npm run preview -w frontend-vite",
     "lint": "npm run lint -w frontend-vite"
