@@ -21,8 +21,8 @@ const pdf = require("pdf-parse");
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Try loading environment variables from project root first, then backend/.env
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+// Try loading environment variables from project root first, then ./.env
+dotenv.config({ path: path.resolve(__dirname, "./.env") });
 dotenv.config();
 
 if (!process.env.MONGO_URI) {

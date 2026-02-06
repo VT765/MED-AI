@@ -68,3 +68,41 @@ MedAI aims to **bridge the gap between patients and medical intelligence** by pr
 
 ## 🏗️ System Architecture
 
+
+---
+
+## 🔹 Key Features (Project)
+
+- **AI-Based Medical Assistant:** Provides basic prescription and health guidance through an interactive question–answer system.
+- **Medical Report Analysis:** Allows users to upload medical report images or PDFs and explains key health parameters in simple language.
+- **User-Friendly Interface:** Simple, clean, and responsive web interface accessible on desktop and mobile devices.
+- **Educational Guidance Only:** Ensures all medical suggestions are strictly for awareness and educational purposes.
+- **Safety Alerts & Recommendations:** Advises users to consult certified medical professionals for serious or critical conditions.
+- **24/7 Availability:** AI assistant is available anytime, improving accessibility to health information.
+
+---
+
+## 🔹 TERMS & CONDITIONS (Very important for healthcare projects)
+
+1. MedAI is designed only for educational and informational purposes.
+2. The system does not replace professional medical advice, diagnosis, or treatment.
+3. Users must consult a certified doctor before following any medical recommendations.
+4. MedAI is not responsible for any health outcomes resulting from misuse of information.
+5. Uploaded medical reports are used only for analysis and are not shared with third parties.
+6. Users must provide accurate and truthful information for better guidance.
+7. Any misuse of the system may result in restricted access.
+
+By using MedAI, the user agrees to these terms.
+
+---
+
+## 🔹 HELP & SUPPORT
+
+- **User Guidance:** Step-by-step assistance on how to ask health-related questions and upload medical reports.
+- **FAQ Section:** Answers common questions related to prescriptions, reports, and system usage.
+- **Error Handling Support:** Clear messages are shown if reports are unreadable or inputs are unclear.
+- **Contact Support:** Users can reach the support team via email or contact form for technical issues.
+- **Feedback & Improvement:** Users can submit feedback to improve system accuracy and usability.
+
+
+
