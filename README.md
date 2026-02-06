@@ -104,5 +104,5 @@ By using MedAI, the user agrees to these terms.
 - **Contact Support:** Users can reach the support team via email or contact form for technical issues.
 - **Feedback & Improvement:** Users can submit feedback to improve system accuracy and usability.
 
-
+If you'd like, I can also add a short FAQ file or a `SUPPORT.md` page with contact templates and sample questions.
 
