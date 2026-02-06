@@ -1,5 +1,7 @@
+backend/node_modules
 node_modules/
 .cache/
 .env
 dist/
 build/
+package-lock.json
