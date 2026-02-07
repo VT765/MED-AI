@@ -10,10 +10,12 @@ import { protect } from "./middleware/auth.js";
 import upload from "./middleware/upload.js";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import OpenAI from "openai";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import CSSMatrix from "@thednp/dommatrix";
+import { sendVerificationEmail } from "./utils/email.js";
 
 if (typeof globalThis.DOMMatrix === "undefined") {
   globalThis.DOMMatrix = CSSMatrix;
@@ -56,6 +58,13 @@ const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
+const OTP_TTL_MINUTES = Number(process.env.OTP_TTL_MINUTES || 10);
+const OTP_RESEND_COOLDOWN_SECONDS = Number(process.env.OTP_RESEND_COOLDOWN_SECONDS || 60);
+
+const generateOtp = () => String(crypto.randomInt(0, 1000000)).padStart(6, "0");
+const hashOtp = (otp) => crypto.createHash("sha256").update(otp).digest("hex");
+const isOtpExpired = (expiresAt) => !expiresAt || new Date(expiresAt).getTime() < Date.now();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -74,10 +83,11 @@ app.use('/uploads', express.static('uploads'));
 // 🔐 SIGN UP
 app.post("/api/auth/signup", async (req, res) => {
   console.log("Signup Request Body:", req.body);
-  const { name, email, password } = req.body;
+  const { username, email, password, phone } = req.body;
+  const displayUsername = String(username || "").trim();
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: "All fields required" });
+  if (!displayUsername || !email || !password) {
+    return res.status(400).json({ message: "Username, email, and password are required" });
   }
 
   if (!process.env.JWT_SECRET) {
@@ -87,20 +97,118 @@ app.post("/api/auth/signup", async (req, res) => {
   }
 
   try {
-    const userExists = await User.findOne({ email });
+    const normalizedEmail = email.trim().toLowerCase();
+    const userExists = await User.findOne({ email: normalizedEmail });
     if (userExists) {
-      return res.status(400).json({ message: "User already exists" });
+      if (userExists.emailVerified) {
+        return res.status(400).json({ message: "User already exists" });
+      }
+
+      const otp = generateOtp();
+      userExists.emailVerificationOtpHash = hashOtp(otp);
+      userExists.emailVerificationOtpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+      userExists.emailVerificationOtpSentAt = new Date();
+      await userExists.save();
+
+      const emailSent = await sendVerificationEmail({
+        to: userExists.email,
+        otp,
+        expiresMinutes: OTP_TTL_MINUTES,
+      });
+
+      return res.status(200).json({
+        message: "Verification code sent",
+        verificationRequired: true,
+        email: userExists.email,
+        ...(emailSent || process.env.NODE_ENV === "production" ? {} : { debugOtp: otp }),
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     console.log("Creating user in DB...");
     const user = await User.create({
-      name,
-      email,
+      username: displayUsername,
+      email: normalizedEmail,
+      phone: phone || null,
       password: hashedPassword,
+      emailVerified: false,
     });
     console.log("User successfully created in DB:", user._id);
+
+    const otp = generateOtp();
+    user.emailVerificationOtpHash = hashOtp(otp);
+    user.emailVerificationOtpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+    user.emailVerificationOtpSentAt = new Date();
+    await user.save();
+
+    const emailSent = await sendVerificationEmail({
+      to: user.email,
+      otp,
+      expiresMinutes: OTP_TTL_MINUTES,
+    });
+
+    res.status(201).json({
+      message: "Verification code sent",
+      verificationRequired: true,
+      email: user.email,
+      ...(emailSent || process.env.NODE_ENV === "production" ? {} : { debugOtp: otp }),
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// ✅ VERIFY EMAIL OTP
+app.post("/api/auth/verify-email", async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ message: "Email and OTP are required" });
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid verification code" });
+    }
+
+    if (user.emailVerified) {
+      const token = jwt.sign(
+        { id: user._id, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: "1h" }
+      );
+
+      return res.json({
+        message: "Email already verified",
+        token,
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          phone: user.phone || undefined,
+        },
+      });
+    }
+
+    if (isOtpExpired(user.emailVerificationOtpExpiresAt)) {
+      return res.status(400).json({ message: "Verification code expired" });
+    }
+
+    const incomingHash = hashOtp(String(otp));
+    if (incomingHash !== user.emailVerificationOtpHash) {
+      return res.status(400).json({ message: "Invalid verification code" });
+    }
+
+    user.emailVerified = true;
+    user.emailVerifiedAt = new Date();
+    user.emailVerificationOtpHash = null;
+    user.emailVerificationOtpExpiresAt = null;
+    user.emailVerificationOtpSentAt = null;
+    await user.save();
 
     const token = jwt.sign(
       { id: user._id, email: user.email },
@@ -108,14 +216,65 @@ app.post("/api/auth/signup", async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    res.status(201).json({
-      message: "User registered successfully",
+    res.json({
+      message: "Email verified successfully",
       token,
       user: {
         id: user._id,
-        name: user.name,
-        email: user.email
-      }
+        username: user.username,
+        email: user.email,
+        phone: user.phone || undefined,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// 🔁 RESEND EMAIL OTP
+app.post("/api/auth/resend-otp", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(200).json({ message: "If the account exists, a verification code has been sent." });
+    }
+
+    if (user.emailVerified) {
+      return res.status(200).json({ message: "Email already verified" });
+    }
+
+    const lastSent = user.emailVerificationOtpSentAt?.getTime() || 0;
+    const secondsSinceLast = (Date.now() - lastSent) / 1000;
+    if (secondsSinceLast < OTP_RESEND_COOLDOWN_SECONDS) {
+      return res.status(429).json({
+        message: "Please wait before requesting another code",
+        retryAfterSeconds: Math.ceil(OTP_RESEND_COOLDOWN_SECONDS - secondsSinceLast),
+      });
+    }
+
+    const otp = generateOtp();
+    user.emailVerificationOtpHash = hashOtp(otp);
+    user.emailVerificationOtpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+    user.emailVerificationOtpSentAt = new Date();
+    await user.save();
+
+    const emailSent = await sendVerificationEmail({
+      to: user.email,
+      otp,
+      expiresMinutes: OTP_TTL_MINUTES,
+    });
+
+    res.status(200).json({
+      message: "Verification code sent",
+      ...(emailSent || process.env.NODE_ENV === "production" ? {} : { debugOtp: otp }),
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -132,8 +291,13 @@ app.post("/api/auth/login", async (req, res) => {
     });
   }
 
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password are required" });
+  }
+
   try {
-    const user = await User.findOne({ email });
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -141,6 +305,14 @@ app.post("/api/auth/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    if (!user.emailVerified) {
+      return res.status(403).json({
+        message: "Email not verified",
+        code: "EMAIL_NOT_VERIFIED",
+        email: user.email,
+      });
     }
 
     const token = jwt.sign(
@@ -154,8 +326,9 @@ app.post("/api/auth/login", async (req, res) => {
       token,
       user: {
         id: user._id,
-        name: user.name,
-        email: user.email
+        username: user.username,
+        email: user.email,
+        phone: user.phone || undefined,
       }
     });
   } catch (error) {

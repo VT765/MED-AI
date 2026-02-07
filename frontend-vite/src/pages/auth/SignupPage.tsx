@@ -37,13 +37,17 @@ export function SignupPage() {
   const onSubmit = async (data: SignupFormValues) => {
     setError(null);
     try {
-      await signup({
+      const result = await signup({
         username: data.username,
         email: data.email,
         phone: data.phone,
         password: data.password
       });
-      navigate("/dashboard");
+      if (result.verificationRequired) {
+        navigate(`/auth/verify-email?email=${encodeURIComponent(result.email)}`);
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err: any) {
       console.error("Signup error:", err);
       setError(err.message || "Sign up failed. Please try again.");

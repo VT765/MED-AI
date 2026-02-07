@@ -7,6 +7,7 @@ import { TermsPage } from "@/pages/TermsPage";
 import { PrivacyPage } from "@/pages/PrivacyPage";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { SignupPage } from "@/pages/auth/SignupPage";
+import { VerifyEmailPage } from "@/pages/auth/VerifyEmailPage";
 import { DashboardPage } from "@/pages/dashboard/DashboardPage";
 import { ChatPage } from "@/pages/dashboard/ChatPage";
 import { ReportsPage } from "@/pages/dashboard/ReportsPage";
@@ -30,6 +31,7 @@ function App() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/auth/login" element={<LoginPage />} />
       <Route path="/auth/signup" element={<SignupPage />} />
+      <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
 
       <Route path="/dashboard" element={<DashboardLayout />}>
         <Route index element={<DashboardPage />} />

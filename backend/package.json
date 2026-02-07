@@ -5,7 +5,8 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "migrate:username": "node migrations/rename_user_name_to_username.js"
   },
   "dependencies": {
     "@thednp/dommatrix": "^2.0.0",
@@ -23,6 +24,7 @@
     "mongoose": "^9.1.6",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
+    "nodemailer": "^6.10.1",
     "openai": "^6.18.0",
     "pdf-parse": "^2.4.5",
     "zod": "^3.25.76"

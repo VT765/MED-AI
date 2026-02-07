@@ -14,17 +14,19 @@ const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/sam';
 console.log("Seeding to:", uri);
 
 const userSchema = new mongoose.Schema({
-    name: { type: String, required: true },
+    username: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    emailVerified: { type: Boolean, default: true },
+    emailVerifiedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
 
 const dummyUsers = [
-    { name: "Alice Test", email: "alice@test.com", password: "password123" },
-    { name: "Bob Demo", email: "bob@demo.com", password: "password123" },
-    { name: "Charlie Dev", email: "charlie@dev.com", password: "password123" }
+    { username: "Alice Test", email: "alice@test.com", password: "password123" },
+    { username: "Bob Demo", email: "bob@demo.com", password: "password123" },
+    { username: "Charlie Dev", email: "charlie@dev.com", password: "password123" }
 ];
 
 async function seedUsers() {
@@ -43,7 +45,7 @@ async function seedUsers() {
 
         const result = await User.insertMany(hashedUsers);
         console.log(`\n✅ Successfully added ${result.length} dummy users:`);
-        result.forEach(u => console.log(`   - ${u.name} (${u.email})`));
+        result.forEach(u => console.log(`   - ${u.username} (${u.email})`));
 
         console.log("\n👉 Go to MongoDB Compass and check the 'users' collection in the 'sam' database (or verify your MONGO_URI).");
 

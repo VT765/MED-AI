@@ -14,6 +14,11 @@ export interface User {
   phone?: string;
 }
 
+export interface SignupResult {
+  verificationRequired: boolean;
+  email: string;
+}
+
 export function getCurrentUser(): User | null {
   if (typeof window === "undefined") return null;
   try {
@@ -55,7 +60,10 @@ export async function login(email: string, password: string): Promise<User> {
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data.message || "Login failed");
+    const error: any = new Error(data.message || "Login failed");
+    error.code = data.code;
+    error.email = data.email;
+    throw error;
   }
 
   // Decode token or use returned user data?
@@ -78,13 +86,14 @@ export async function signup(data: {
   email: string;
   phone?: string;
   password?: string; // Add password to type
-}): Promise<User> {
+}): Promise<SignupResult> {
   const res = await fetch(apiUrl("/api/auth/signup"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      name: data.username,
+      username: data.username,
       email: data.email,
+      phone: data.phone,
       password: data.password // passed from form
     }),
   });
@@ -95,9 +104,46 @@ export async function signup(data: {
     throw new Error(resData.message || "Signup failed");
   }
 
-  const user = resData.user;
-  setUser(user, resData.token);
+  if (resData.token && resData.user) {
+    setUser(resData.user, resData.token);
+  }
+
+  return {
+    verificationRequired: Boolean(resData.verificationRequired),
+    email: resData.email || data.email,
+  };
+}
+
+export async function verifyEmailOtp(email: string, otp: string): Promise<User> {
+  const res = await fetch(apiUrl("/api/auth/verify-email"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || "Verification failed");
+  }
+
+  const user = data.user;
+  setUser(user, data.token);
   return user;
+}
+
+export async function resendEmailOtp(email: string): Promise<void> {
+  const res = await fetch(apiUrl("/api/auth/resend-otp"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to resend code");
+  }
 }
 
 // Keeping mock functions for compatibility if needed, but they should be removed.

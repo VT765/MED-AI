@@ -30,6 +30,10 @@ export function LoginPage() {
       navigate("/dashboard");
     } catch (err: any) {
       console.error("Login error:", err);
+      if (err.code === "EMAIL_NOT_VERIFIED") {
+        navigate(`/auth/verify-email?email=${encodeURIComponent(err.email || data.email)}`);
+        return;
+      }
       setError(err.message || "Login failed. Please try again.");
     }
   };
