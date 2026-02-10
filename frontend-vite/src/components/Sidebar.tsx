@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/Logo";
 
 const primaryItems = [
   { href: "/", label: "Home", icon: Home },
@@ -31,116 +32,91 @@ const careItems = [
 export function Sidebar() {
   const location = useLocation();
   const pathname = location.pathname;
-  const [careOpen, setCareOpen] = useState(false);
-  const careRef = useRef<HTMLDivElement>(null);
-
-  const isCareActive = careItems.some((item) => !item.disabled && pathname === item.href);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (careRef.current && !careRef.current.contains(e.target as Node)) {
-        setCareOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   return (
-    <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-stone-200 bg-surface-elevated lg:flex" aria-label="Dashboard navigation">
-      <nav className="flex flex-1 flex-col gap-0.5 p-4">
-        {primaryItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-button px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive ? "bg-primary-100 text-primary-700" : "text-content-secondary hover:bg-surface-muted hover:text-content-primary"
-              )}
-              aria-current={isActive ? "page" : undefined}
-            >
-              <Icon className="h-5 w-5 shrink-0" aria-hidden />
-              {item.label}
-            </Link>
-          );
-        })}
+    <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-stone-200 bg-surface lg:flex" aria-label="Dashboard navigation">
+      <div className="flex h-14 items-center border-b border-stone-200 px-6">
+        <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
+          <Logo size={32} className="h-8 w-8" />
+          <span className="text-lg font-bold tracking-tight text-content-primary">MedAI</span>
+        </Link>
+      </div>
 
-        <div className="mt-3" ref={careRef}>
-          <button
-            type="button"
-            onClick={() => setCareOpen((open) => !open)}
-            className={cn(
-              "flex w-full items-center justify-between rounded-button px-3 py-2.5 text-sm font-medium transition-colors",
-              careOpen || isCareActive ? "bg-surface-muted text-content-primary" : "text-content-secondary hover:bg-surface-muted hover:text-content-primary"
-            )}
-            aria-expanded={careOpen}
-            aria-controls="care-services-menu"
-            aria-haspopup="true"
-            id="care-services-trigger"
-          >
-            <span className="flex items-center gap-3">
-              <MessageCircle className="h-5 w-5 shrink-0" aria-hidden />
-              <span>Care services</span>
-            </span>
-            <ChevronDown className={cn("h-4 w-4 shrink-0 text-content-tertiary transition-transform duration-200", careOpen && "rotate-180")} aria-hidden />
-          </button>
-
-          <AnimatePresence>
-            {careOpen && (
-              <motion.div
-                id="care-services-menu"
-                role="menu"
-                aria-label="Care services"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
+      <nav className="flex-1 overflow-y-auto p-4">
+        <div className="space-y-1">
+          {primaryItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  isActive
+                    ? "bg-primary-600 text-white shadow-soft"
+                    : "text-content-secondary hover:bg-surface-muted hover:text-content-primary"
+                )}
+                aria-current={isActive ? "page" : undefined}
               >
-                <div className="mt-1 space-y-0.5 pl-10">
-                  {careItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = pathname === item.href;
-                    const isDisabled = item.disabled;
+                <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-white" : "text-content-tertiary")} aria-hidden />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
 
-                    if (isDisabled) {
-                      return (
-                        <div
-                          key={item.href}
-                          role="menuitem"
-                          aria-disabled="true"
-                          className="flex cursor-not-allowed items-center gap-2 rounded-button px-2 py-1.5 text-xs text-content-tertiary"
-                          title="Coming soon: AI fitness & diet plans"
-                        >
-                          <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                          <span>{item.label}</span>
-                        </div>
-                      );
-                    }
+        <div className="mt-8">
+          <h3 className="px-3 text-xs font-semibold uppercase tracking-wider text-content-tertiary">
+            Care Services
+          </h3>
+          <div className="mt-2 space-y-1">
+            {careItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              const isDisabled = item.disabled;
 
-                    return (
-                      <Link
-                        key={item.href}
-                        to={item.href}
-                        role="menuitem"
-                        className={cn(
-                          "flex items-center gap-2 rounded-button px-2 py-1.5 text-xs transition-colors focus:bg-surface-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1",
-                          isActive ? "bg-primary-50 text-primary-700" : "text-content-secondary hover:bg-surface-muted hover:text-content-primary"
-                        )}
-                        aria-current={isActive ? "page" : undefined}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" aria-hidden />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              if (isDisabled) {
+                return (
+                  <div
+                    key={item.href}
+                    className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-tertiary opacity-60"
+                  >
+                    <Icon className="h-5 w-5 shrink-0" aria-hidden />
+                    <span>{item.label}</span>
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    isActive
+                      ? "bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-200"
+                      : "text-content-secondary hover:bg-surface-muted hover:text-content-primary"
+                  )}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-primary-600" : "text-content-tertiary")} aria-hidden />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Pro / Upgrade Card (Optional visual filler for 'unique' feel) */}
+        <div className="mt-8 rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 p-4">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-primary-600 shadow-sm">
+            <Activity className="h-4 w-4" />
+          </div>
+          <h4 className="mt-3 text-sm font-semibold text-primary-900">Health Plan</h4>
+          <p className="mt-1 text-xs text-primary-700/80">
+            Get personalized AI health insights coming soon.
+          </p>
         </div>
       </nav>
     </aside>

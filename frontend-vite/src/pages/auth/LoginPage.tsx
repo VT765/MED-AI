@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,32 +9,46 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { login } from "@/lib/auth";
+import { sendPhoneOtp, setupRecaptcha } from "@/lib/auth";
+import type { RecaptchaVerifier } from "firebase/auth";
 
-const loginSchema = z.object({
-  email: z.string().email("Valid email required"),
-  password: z.string().min(1, "Password is required"),
+const phoneSchema = z.object({
+  phone: z
+    .string()
+    .min(10, "Enter a valid phone number with country code")
+    .regex(/^\+\d{10,15}$/, "Phone number must start with + and country code (e.g. +91XXXXXXXXXX)"),
 });
 
-type LoginFormValues = z.infer<typeof loginSchema>;
+type PhoneFormValues = z.infer<typeof phoneSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) });
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<PhoneFormValues>({
+    resolver: zodResolver(phoneSchema),
+  });
 
-  const onSubmit = async (data: LoginFormValues) => {
+  const onSubmit = async (data: PhoneFormValues) => {
     setError(null);
     try {
-      await login(data.email, data.password);
-      navigate("/dashboard");
-    } catch (err: any) {
-      console.error("Login error:", err);
-      if (err.code === "EMAIL_NOT_VERIFIED") {
-        navigate(`/auth/verify-email?email=${encodeURIComponent(err.email || data.email)}`);
-        return;
+      if (!recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current = setupRecaptcha("recaptcha-container");
       }
-      setError(err.message || "Login failed. Please try again.");
+
+      await sendPhoneOtp(data.phone, recaptchaVerifierRef.current);
+      navigate(`/auth/verify-phone?phone=${encodeURIComponent(data.phone)}`);
+    } catch (err: any) {
+      console.error("Phone OTP error:", err);
+      // Reset reCAPTCHA on error so it can be retried
+      recaptchaVerifierRef.current = null;
+      if (err.code === "auth/too-many-requests") {
+        setError("Too many attempts. Please try again later.");
+      } else if (err.code === "auth/invalid-phone-number") {
+        setError("Invalid phone number. Use format: +91XXXXXXXXXX");
+      } else {
+        setError(err.message || "Failed to send OTP. Please try again.");
+      }
     }
   };
 
@@ -48,8 +62,8 @@ export function LoginPage() {
 
         <Card className="shadow-card">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>Enter your email and password to access your account.</CardDescription>
+            <CardTitle className="text-xl">Welcome to MedAI</CardTitle>
+            <CardDescription>Enter your phone number to sign in or create an account.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {error && (
@@ -57,40 +71,28 @@ export function LoginPage() {
             )}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="you@example.com" {...register("email")} className="rounded-input h-11" autoComplete="email" />
-                {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link to="/auth/forgot-password" className="text-sm font-medium text-primary-600 hover:underline">Forgot password?</Link>
-                </div>
-                <Input id="password" type="password" placeholder="••••••••" {...register("password")} className="rounded-input h-11" autoComplete="current-password" />
-                {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
+                <Label htmlFor="phone">Phone number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+91XXXXXXXXXX"
+                  {...register("phone")}
+                  className="rounded-input h-11"
+                  autoComplete="tel"
+                />
+                {errors.phone && <p className="text-sm text-red-600">{errors.phone.message}</p>}
+                <p className="text-xs text-content-tertiary">Include country code (e.g. +91 for India)</p>
               </div>
               <Button type="submit" className="h-11 w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Signing in…" : "Log in"}
+                {isSubmitting ? "Sending OTP…" : "Send OTP"}
               </Button>
             </form>
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-stone-200" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase tracking-wider">
-                <span className="bg-surface-elevated px-2 text-content-tertiary">Or continue with</span>
-              </div>
-            </div>
-            <Button type="button" variant="outline" className="w-full" disabled>Google (coming soon)</Button>
+            <div id="recaptcha-container"></div>
             <p className="text-center text-sm text-content-secondary">
-              By logging in, you agree to our <Link to="/terms" className="font-medium text-primary-600 hover:underline">Terms & Conditions</Link>.
+              By continuing, you agree to our <Link to="/terms" className="font-medium text-primary-600 hover:underline">Terms & Conditions</Link>.
             </p>
           </CardContent>
         </Card>
-
-        <p className="mt-8 text-center text-sm text-content-secondary">
-          Don&apos;t have an account? <Link to="/auth/signup" className="font-semibold text-primary-600 hover:underline">Sign up</Link>
-        </p>
       </motion.div>
     </div>
   );

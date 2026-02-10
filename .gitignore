@@ -30,3 +30,6 @@ Optional: uncomment to ignore lockfiles (not recommended; commit for reproducibl
 package-lock.json
 pnpm-lock.yaml
 yarn.lock
+
+backend/firebase-service-account.json
+

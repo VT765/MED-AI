@@ -1,21 +1,19 @@
 import express from "express";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
+import admin from "./config/firebase.js";
+import bcrypt from "bcryptjs";
 import User from "./models/User.js";
 import Document from "./models/Document.js";
 import { protect } from "./middleware/auth.js";
 import upload from "./middleware/upload.js";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
 import OpenAI from "openai";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 import CSSMatrix from "@thednp/dommatrix";
-import { sendVerificationEmail } from "./utils/email.js";
 
 if (typeof globalThis.DOMMatrix === "undefined") {
   globalThis.DOMMatrix = CSSMatrix;
@@ -39,13 +37,6 @@ if (!process.env.MONGO_URI) {
   );
 }
 
-if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = "dev-secret-change-in-production-" + Math.random().toString(36).slice(2);
-  console.warn(
-    "JWT_SECRET is not set in .env. Using a dev-only secret. Add JWT_SECRET to your .env for production."
-  );
-}
-
 if (!process.env.OPENAI_API_KEY) {
   console.warn(
     "OPENAI_API_KEY is not set. The /api/chat endpoint will not work until you add OPENAI_API_KEY to your .env."
@@ -57,13 +48,6 @@ connectDB();
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
-
-const OTP_TTL_MINUTES = Number(process.env.OTP_TTL_MINUTES || 10);
-const OTP_RESEND_COOLDOWN_SECONDS = Number(process.env.OTP_RESEND_COOLDOWN_SECONDS || 60);
-
-const generateOtp = () => String(crypto.randomInt(0, 1000000)).padStart(6, "0");
-const hashOtp = (otp) => crypto.createHash("sha256").update(otp).digest("hex");
-const isOtpExpired = (expiresAt) => !expiresAt || new Date(expiresAt).getTime() < Date.now();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -80,261 +64,147 @@ app.use((req, res, next) => {
 });
 app.use('/uploads', express.static('uploads'));
 
-// 🔐 SIGN UP
-app.post("/api/auth/signup", async (req, res) => {
-  console.log("Signup Request Body:", req.body);
-  const { username, email, password, phone } = req.body;
-  const displayUsername = String(username || "").trim();
+// 🔐 FIREBASE PHONE AUTH — VERIFY & CREATE USER
+app.post("/api/auth/verify-phone", async (req, res) => {
+  const authHeader = req.headers.authorization;
 
-  if (!displayUsername || !email || !password) {
-    return res.status(400).json({ message: "Username, email, and password are required" });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ authenticated: false, message: "Missing or invalid Authorization header" });
   }
 
-  if (!process.env.JWT_SECRET) {
-    return res.status(503).json({
-      message: "Server misconfigured. Add JWT_SECRET to your .env file.",
-    });
-  }
+  const idToken = authHeader.split(" ")[1];
 
   try {
-    const normalizedEmail = email.trim().toLowerCase();
-    const userExists = await User.findOne({ email: normalizedEmail });
-    if (userExists) {
-      if (userExists.emailVerified) {
-        return res.status(400).json({ message: "User already exists" });
-      }
+    const decoded = await admin.auth().verifyIdToken(idToken);
 
-      const otp = generateOtp();
-      userExists.emailVerificationOtpHash = hashOtp(otp);
-      userExists.emailVerificationOtpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
-      userExists.emailVerificationOtpSentAt = new Date();
-      await userExists.save();
-
-      const emailSent = await sendVerificationEmail({
-        to: userExists.email,
-        otp,
-        expiresMinutes: OTP_TTL_MINUTES,
-      });
-
-      return res.status(200).json({
-        message: "Verification code sent",
-        verificationRequired: true,
-        email: userExists.email,
-        ...(emailSent || process.env.NODE_ENV === "production" ? {} : { debugOtp: otp }),
-      });
+    if (!decoded.phone_number) {
+      return res.status(400).json({ authenticated: false, message: "Token does not contain a phone number" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const phone = decoded.phone_number;
+    const firebaseUid = decoded.uid;
 
-    console.log("Creating user in DB...");
-    const user = await User.create({
-      username: displayUsername,
-      email: normalizedEmail,
-      phone: phone || null,
-      password: hashedPassword,
-      emailVerified: false,
-    });
-    console.log("User successfully created in DB:", user._id);
-
-    const otp = generateOtp();
-    user.emailVerificationOtpHash = hashOtp(otp);
-    user.emailVerificationOtpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
-    user.emailVerificationOtpSentAt = new Date();
-    await user.save();
-
-    const emailSent = await sendVerificationEmail({
-      to: user.email,
-      otp,
-      expiresMinutes: OTP_TTL_MINUTES,
-    });
-
-    res.status(201).json({
-      message: "Verification code sent",
-      verificationRequired: true,
-      email: user.email,
-      ...(emailSent || process.env.NODE_ENV === "production" ? {} : { debugOtp: otp }),
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// ✅ VERIFY EMAIL OTP
-app.post("/api/auth/verify-email", async (req, res) => {
-  const { email, otp } = req.body;
-
-  if (!email || !otp) {
-    return res.status(400).json({ message: "Email and OTP are required" });
-  }
-
-  try {
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
+    // Find existing user or create a new one
+    let user = await User.findOne({ firebaseUid });
+    let isNewUser = false;
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid verification code" });
-    }
-
-    if (user.emailVerified) {
-      const token = jwt.sign(
-        { id: user._id, email: user.email },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" }
-      );
-
-      return res.json({
-        message: "Email already verified",
-        token,
-        user: {
-          id: user._id,
-          username: user.username,
-          email: user.email,
-          phone: user.phone || undefined,
-        },
+      user = await User.create({
+        firebaseUid,
+        phone,
+        authProvider: "phone",
+        profileComplete: false,
+        username: null,
+        email: null,
+        password: null,
       });
+      isNewUser = true;
+      console.log("New user created via Firebase:", user._id);
     }
-
-    if (isOtpExpired(user.emailVerificationOtpExpiresAt)) {
-      return res.status(400).json({ message: "Verification code expired" });
-    }
-
-    const incomingHash = hashOtp(String(otp));
-    if (incomingHash !== user.emailVerificationOtpHash) {
-      return res.status(400).json({ message: "Invalid verification code" });
-    }
-
-    user.emailVerified = true;
-    user.emailVerifiedAt = new Date();
-    user.emailVerificationOtpHash = null;
-    user.emailVerificationOtpExpiresAt = null;
-    user.emailVerificationOtpSentAt = null;
-    await user.save();
-
-    const token = jwt.sign(
-      { id: user._id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
 
     res.json({
-      message: "Email verified successfully",
-      token,
+      authenticated: true,
+      profileComplete: user.profileComplete,
+      isNewUser,
       user: {
         id: user._id,
+        phone: user.phone,
         username: user.username,
-        email: user.email,
-        phone: user.phone || undefined,
+        email: user.email || undefined,
+        authProvider: user.authProvider,
       },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Firebase verify-phone error:", error);
+    res.status(401).json({ authenticated: false, message: "Invalid Firebase token", error: error.message });
   }
 });
 
-// 🔁 RESEND EMAIL OTP
-app.post("/api/auth/resend-otp", async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ message: "Email is required" });
-  }
-
+// 📝 COMPLETE PROFILE — set username, email, optional password
+app.post("/api/auth/complete-profile", protect, async (req, res) => {
   try {
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = req.user;
 
-    if (!user) {
-      return res.status(200).json({ message: "If the account exists, a verification code has been sent." });
+    // Prevent double-completion (idempotency guard)
+    if (user.profileComplete) {
+      return res.status(400).json({ message: "Profile is already complete" });
     }
 
-    if (user.emailVerified) {
-      return res.status(200).json({ message: "Email already verified" });
+    const { username, email, password } = req.body;
+
+    // ── Validate required fields ──
+    if (!username || typeof username !== "string" || !username.trim()) {
+      return res.status(400).json({ message: "Username is required" });
+    }
+    if (!email || typeof email !== "string" || !email.trim()) {
+      return res.status(400).json({ message: "Email is required" });
     }
 
-    const lastSent = user.emailVerificationOtpSentAt?.getTime() || 0;
-    const secondsSinceLast = (Date.now() - lastSent) / 1000;
-    if (secondsSinceLast < OTP_RESEND_COOLDOWN_SECONDS) {
-      return res.status(429).json({
-        message: "Please wait before requesting another code",
-        retryAfterSeconds: Math.ceil(OTP_RESEND_COOLDOWN_SECONDS - secondsSinceLast),
-      });
+    const trimmedUsername = username.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
+    // ── Validate email format ──
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ message: "Invalid email format" });
     }
 
-    const otp = generateOtp();
-    user.emailVerificationOtpHash = hashOtp(otp);
-    user.emailVerificationOtpExpiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
-    user.emailVerificationOtpSentAt = new Date();
+    // ── Check uniqueness ──
+    const existingUsername = await User.findOne({ username: trimmedUsername, _id: { $ne: user._id } });
+    if (existingUsername) {
+      return res.status(409).json({ message: "Username is already taken" });
+    }
+
+    const existingEmail = await User.findOne({ email: trimmedEmail, _id: { $ne: user._id } });
+    if (existingEmail) {
+      return res.status(409).json({ message: "Email is already in use" });
+    }
+
+    // ── Update user ──
+    user.username = trimmedUsername;
+    user.email = trimmedEmail;
+    user.profileComplete = true;
+
+    // Hash password if provided
+    if (password && typeof password === "string" && password.length >= 6) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    } else if (password) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
     await user.save();
 
-    const emailSent = await sendVerificationEmail({
-      to: user.email,
-      otp,
-      expiresMinutes: OTP_TTL_MINUTES,
-    });
-
-    res.status(200).json({
-      message: "Verification code sent",
-      ...(emailSent || process.env.NODE_ENV === "production" ? {} : { debugOtp: otp }),
+    res.json({
+      message: "Profile completed successfully",
+      profileComplete: true,
+      user: {
+        id: user._id,
+        phone: user.phone,
+        username: user.username,
+        email: user.email,
+        authProvider: user.authProvider,
+      },
     });
   } catch (error) {
+    console.error("Complete profile error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
-// 🔑 LOGIN
-app.post("/api/auth/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!process.env.JWT_SECRET) {
-    return res.status(503).json({
-      message: "Server misconfigured. Add JWT_SECRET to your .env file.",
-    });
-  }
-
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
-  }
-
-  try {
-    const normalizedEmail = String(email || "").trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
-    if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    if (!user.emailVerified) {
-      return res.status(403).json({
-        message: "Email not verified",
-        code: "EMAIL_NOT_VERIFIED",
-        email: user.email,
-      });
-    }
-
-    const token = jwt.sign(
-      { id: user._id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
-
-    res.json({
-      message: "Login successful",
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        phone: user.phone || undefined,
-      }
-    });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
+// 👤 GET CURRENT USER
+app.get("/api/auth/me", protect, async (req, res) => {
+  res.json({
+    user: {
+      id: req.user._id,
+      username: req.user.username,
+      phone: req.user.phone,
+      email: req.user.email || undefined,
+      authProvider: req.user.authProvider,
+      profileComplete: req.user.profileComplete,
+      createdAt: req.user.createdAt,
+    },
+  });
 });
 
 // 📄 UPLOAD DOCUMENT

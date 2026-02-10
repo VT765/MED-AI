@@ -17,8 +17,9 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
-import { getCurrentUser, clearUser } from "@/lib/auth";
+import { getCurrentUser, logout } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/Logo";
 
 const primaryNav = [
   { href: "/", label: "Home", icon: Home },
@@ -66,9 +67,9 @@ export function DashboardLayout() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setDropdownOpen(false);
-    clearUser();
+    await logout();
     setUser(null);
     navigate("/");
   };
@@ -178,7 +179,10 @@ export function DashboardLayout() {
 
       <div className="flex flex-1 flex-col lg:ml-0">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-stone-200 bg-surface-elevated px-4 lg:px-8">
-          <h1 className="text-lg font-semibold text-content-primary lg:text-xl">MedAI</h1>
+          <div className="flex items-center gap-2">
+            <Logo size={28} className="h-7 w-7" />
+            <h1 className="text-lg font-bold tracking-tight text-content-primary lg:text-xl">MedAI</h1>
+          </div>
           <div className="relative" ref={dropdownRef}>
             <button
               type="button"

@@ -1,23 +1,21 @@
 /**
- * Real authentication utilities using Backend API.
+ * Firebase Phone Authentication utilities.
  */
 
+import { auth, signInWithPhoneNumber, RecaptchaVerifier } from "./firebase";
+import type { ConfirmationResult } from "./firebase";
 import { apiUrl } from "./api";
 
 const AUTH_KEY = "medai_user";
-const TOKEN_KEY = "medai_token";
 
 export interface User {
   id: string;
-  username: string;
-  email: string;
-  phone?: string;
+  username: string | null;
+  phone: string;
+  email?: string;
 }
 
-export interface SignupResult {
-  verificationRequired: boolean;
-  email: string;
-}
+// ─── Local storage helpers ───────────────────────────────────
 
 export function getCurrentUser(): User | null {
   if (typeof window === "undefined") return null;
@@ -29,123 +27,124 @@ export function getCurrentUser(): User | null {
   }
 }
 
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setUser(user: User, token: string): void {
+export function setUser(user: User): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-  localStorage.setItem(TOKEN_KEY, token);
 }
 
 export function clearUser(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(AUTH_KEY);
-  localStorage.removeItem(TOKEN_KEY);
 }
 
 export function isAuthenticated(): boolean {
-  return getCurrentUser() !== null && getToken() !== null;
+  return getCurrentUser() !== null && auth.currentUser !== null;
 }
 
-export async function login(email: string, password: string): Promise<User> {
-  const res = await fetch(apiUrl("/api/auth/login"), {
+// ─── Firebase token helper ───────────────────────────────────
+
+export async function getIdToken(): Promise<string | null> {
+  const user = auth.currentUser;
+  if (!user) return null;
+  return user.getIdToken();
+}
+
+// ─── Phone OTP flow ──────────────────────────────────────────
+
+let confirmationResult: ConfirmationResult | null = null;
+
+export function setupRecaptcha(elementId: string): RecaptchaVerifier {
+  const verifier = new RecaptchaVerifier(auth, elementId, {
+    size: "invisible",
+    callback: () => {
+      // reCAPTCHA solved — will proceed with signInWithPhoneNumber
+    },
+  });
+  return verifier;
+}
+
+export async function sendPhoneOtp(
+  phoneNumber: string,
+  recaptchaVerifier: RecaptchaVerifier
+): Promise<void> {
+  confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
+}
+
+export interface VerifyResult {
+  user: User;
+  profileComplete: boolean;
+  isNewUser: boolean;
+}
+
+export async function verifyPhoneOtp(code: string): Promise<VerifyResult> {
+  if (!confirmationResult) {
+    throw new Error("No OTP request in progress. Please request a new code.");
+  }
+
+  // Confirm the OTP with Firebase
+  const userCredential = await confirmationResult.confirm(code);
+  const idToken = await userCredential.user.getIdToken();
+
+  // Send token to backend to create/login user
+  const res = await fetch(apiUrl("/api/auth/verify-phone"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${idToken}`,
+    },
   });
 
   const data = await res.json();
 
-  if (!res.ok) {
-    const error: any = new Error(data.message || "Login failed");
-    error.code = data.code;
-    error.email = data.email;
-    throw error;
+  if (!res.ok || !data.authenticated) {
+    throw new Error(data.message || "Authentication failed");
   }
 
-  // Decode token or use returned user data?
-  // Our backend signup returns { user: ... }, but login returns just token?
-  // Wait, let's check server.js login response. 
-  // Login returns { message, token }. It does NOT return user object.
-  // We need to decode the token to get user info or fetch /me.
-  // For now, let's construct a basic user object from email or decode if possible.
-  // Or better, update backend login to return user info too.
-
-  // Assuming backend update (I will add this to the plan)
-  const user = data.user || { id: "unknown", username: email.split("@")[0], email };
-
-  setUser(user, data.token);
-  return user;
-}
-
-export async function signup(data: {
-  username: string;
-  email: string;
-  phone?: string;
-  password?: string; // Add password to type
-}): Promise<SignupResult> {
-  const res = await fetch(apiUrl("/api/auth/signup"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      username: data.username,
-      email: data.email,
-      phone: data.phone,
-      password: data.password // passed from form
-    }),
-  });
-
-  const resData = await res.json();
-
-  if (!res.ok) {
-    throw new Error(resData.message || "Signup failed");
-  }
-
-  if (resData.token && resData.user) {
-    setUser(resData.user, resData.token);
-  }
-
+  const user: User = data.user;
+  setUser(user);
+  confirmationResult = null;
   return {
-    verificationRequired: Boolean(resData.verificationRequired),
-    email: resData.email || data.email,
+    user,
+    profileComplete: data.profileComplete,
+    isNewUser: data.isNewUser,
   };
 }
 
-export async function verifyEmailOtp(email: string, otp: string): Promise<User> {
-  const res = await fetch(apiUrl("/api/auth/verify-email"), {
+// ─── Complete Profile ────────────────────────────────────────
+
+export interface CompleteProfileData {
+  username: string;
+  email: string;
+  password?: string;
+}
+
+export async function completeProfile(profileData: CompleteProfileData): Promise<User> {
+  const token = await getIdToken();
+  if (!token) throw new Error("Not authenticated");
+
+  const res = await fetch(apiUrl("/api/auth/complete-profile"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otp }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(profileData),
   });
 
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data.message || "Verification failed");
+    throw new Error(data.message || "Failed to complete profile");
   }
 
-  const user = data.user;
-  setUser(user, data.token);
+  const user: User = data.user;
+  setUser(user);
   return user;
 }
 
-export async function resendEmailOtp(email: string): Promise<void> {
-  const res = await fetch(apiUrl("/api/auth/resend-otp"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
+// ─── Logout ──────────────────────────────────────────────────
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(data.message || "Failed to resend code");
-  }
+export async function logout(): Promise<void> {
+  await auth.signOut();
+  clearUser();
 }
-
-// Keeping mock functions for compatibility if needed, but they should be removed.
-export const mockLogin = login;
-export const mockSignup = signup;

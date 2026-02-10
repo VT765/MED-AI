@@ -1,51 +1,59 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const userSchema = mongoose.Schema({
-    username: {
-        type: String,
-        required: true,
-        trim: true,
+const userSchema = mongoose.Schema(
+  {
+    // ── Firebase identity ────────────────────────────
+    firebaseUid: {
+      type: String,
+      required: true,
+      unique: true,
     },
-    email: {
-        type: String,
-        required: true,
-        unique: true,
-        lowercase: true,
-        trim: true,
+
+    // ── Auth metadata ────────────────────────────────
+    authProvider: {
+      type: String,
+      enum: ["phone", "google", "email"],
+      default: "phone",
+      required: true,
     },
+
+    profileComplete: {
+      type: Boolean,
+      default: false,
+    },
+
+    // ── Core identity ────────────────────────────────
     phone: {
-        type: String,
-        default: null,
-        trim: true,
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
     },
-    password: {
-        type: String,
-        required: true,
-    },
-    emailVerified: {
-        type: Boolean,
-        default: false,
-    },
-    emailVerifiedAt: {
-        type: Date,
-        default: null,
-    },
-    emailVerificationOtpHash: {
-        type: String,
-        default: null,
-    },
-    emailVerificationOtpExpiresAt: {
-        type: Date,
-        default: null,
-    },
-    emailVerificationOtpSentAt: {
-        type: Date,
-        default: null,
-    },
-}, {
-    timestamps: true,
-});
 
-const User = mongoose.model('User', userSchema);
+    username: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    email: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      default: null,
+    },
+
+    // ── Optional password (hashed) ───────────────────
+    password: {
+      type: String,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const User = mongoose.model("User", userSchema);
 
 export default User;

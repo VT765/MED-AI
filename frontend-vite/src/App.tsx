@@ -6,8 +6,8 @@ import { ContactPage } from "@/pages/ContactPage";
 import { TermsPage } from "@/pages/TermsPage";
 import { PrivacyPage } from "@/pages/PrivacyPage";
 import { LoginPage } from "@/pages/auth/LoginPage";
-import { SignupPage } from "@/pages/auth/SignupPage";
-import { VerifyEmailPage } from "@/pages/auth/VerifyEmailPage";
+import { VerifyPhonePage } from "@/pages/auth/VerifyPhonePage";
+import { CompleteProfilePage } from "@/pages/auth/CompleteProfilePage";
 import { DashboardPage } from "@/pages/dashboard/DashboardPage";
 import { ChatPage } from "@/pages/dashboard/ChatPage";
 import { ReportsPage } from "@/pages/dashboard/ReportsPage";
@@ -30,8 +30,12 @@ function App() {
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/auth/login" element={<LoginPage />} />
-      <Route path="/auth/signup" element={<SignupPage />} />
-      <Route path="/auth/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/auth/verify-phone" element={<VerifyPhonePage />} />
+      <Route path="/auth/complete-profile" element={<CompleteProfilePage />} />
+
+      {/* Redirects for removed routes */}
+      <Route path="/auth/signup" element={<Navigate to="/auth/login" replace />} />
+      <Route path="/auth/verify-email" element={<Navigate to="/auth/login" replace />} />
 
       <Route path="/dashboard" element={<DashboardLayout />}>
         <Route index element={<DashboardPage />} />
