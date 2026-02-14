@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,46 +9,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { sendPhoneOtp, setupRecaptcha } from "@/lib/auth";
-import type { RecaptchaVerifier } from "firebase/auth";
+import { login } from "@/lib/auth";
 
-const phoneSchema = z.object({
-  phone: z
-    .string()
-    .min(10, "Enter a valid phone number with country code")
-    .regex(/^\+\d{10,15}$/, "Phone number must start with + and country code (e.g. +91XXXXXXXXXX)"),
+const loginSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-type PhoneFormValues = z.infer<typeof phoneSchema>;
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<PhoneFormValues>({
-    resolver: zodResolver(phoneSchema),
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = async (data: PhoneFormValues) => {
+  const onSubmit = async (data: LoginFormValues) => {
     setError(null);
     try {
-      if (!recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current = setupRecaptcha("recaptcha-container");
-      }
-
-      await sendPhoneOtp(data.phone, recaptchaVerifierRef.current);
-      navigate(`/auth/verify-phone?phone=${encodeURIComponent(data.phone)}`);
+      await login({ email: data.email, password: data.password });
+      navigate("/dashboard");
     } catch (err: any) {
-      console.error("Phone OTP error:", err);
-      // Reset reCAPTCHA on error so it can be retried
-      recaptchaVerifierRef.current = null;
-      if (err.code === "auth/too-many-requests") {
-        setError("Too many attempts. Please try again later.");
-      } else if (err.code === "auth/invalid-phone-number") {
-        setError("Invalid phone number. Use format: +91XXXXXXXXXX");
-      } else {
-        setError(err.message || "Failed to send OTP. Please try again.");
-      }
+      console.error("Login error:", err);
+      setError(err.message || "Login failed. Please try again.");
     }
   };
 
@@ -62,8 +46,8 @@ export function LoginPage() {
 
         <Card className="shadow-card">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">Welcome to MedAI</CardTitle>
-            <CardDescription>Enter your phone number to sign in or create an account.</CardDescription>
+            <CardTitle className="text-xl">Welcome back</CardTitle>
+            <CardDescription>Sign in with your email and password.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {error && (
@@ -71,23 +55,37 @@ export function LoginPage() {
             )}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone number</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+91XXXXXXXXXX"
-                  {...register("phone")}
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  {...register("email")}
                   className="rounded-input h-11"
-                  autoComplete="tel"
+                  autoComplete="email"
                 />
-                {errors.phone && <p className="text-sm text-red-600">{errors.phone.message}</p>}
-                <p className="text-xs text-content-tertiary">Include country code (e.g. +91 for India)</p>
+                {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  {...register("password")}
+                  className="rounded-input h-11"
+                  autoComplete="current-password"
+                />
+                {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
               </div>
               <Button type="submit" className="h-11 w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Sending OTP…" : "Send OTP"}
+                {isSubmitting ? "Signing in…" : "Sign in"}
               </Button>
             </form>
-            <div id="recaptcha-container"></div>
+            <p className="text-center text-sm text-content-secondary">
+              Don't have an account?{" "}
+              <Link to="/auth/signup" className="font-semibold text-primary-600 hover:underline">Sign up</Link>
+            </p>
             <p className="text-center text-sm text-content-secondary">
               By continuing, you agree to our <Link to="/terms" className="font-medium text-primary-600 hover:underline">Terms & Conditions</Link>.
             </p>

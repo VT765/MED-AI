@@ -4,7 +4,7 @@ import { Send, Bot, User, Mic, Paperclip, FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { getIdToken } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { apiUrl } from "@/lib/api";
 
 export interface ChatMessage {
@@ -50,7 +50,7 @@ export function ChatUI() {
     formData.append("file", file);
 
     try {
-      const token = await getIdToken();
+      const token = getAuthToken();
       const res = await fetch(apiUrl("/api/documents/upload"), {
         method: "POST",
         headers: {
@@ -101,7 +101,7 @@ export function ChatUI() {
     setIsLoading(true);
 
     try {
-      const token = await getIdToken();
+      const token = getAuthToken();
       const res = await fetch(apiUrl("/api/chat"), {
         method: "POST",
         headers: {

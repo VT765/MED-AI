@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getIdToken } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { apiUrl } from "@/lib/api";
 
 interface ProfileData {
@@ -32,7 +32,7 @@ export function ProfilePage() {
   useEffect(() => {
     async function fetchProfile() {
       try {
-        const token = await getIdToken();
+        const token = getAuthToken();
         const res = await fetch(apiUrl("/api/auth/me"), {
           headers: { Authorization: `Bearer ${token}` },
         });

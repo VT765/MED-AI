@@ -1,18 +1,16 @@
 /**
- * Firebase Phone Authentication utilities.
+ * Email/Password Authentication utilities with JWT.
  */
 
-import { auth, signInWithPhoneNumber, RecaptchaVerifier } from "./firebase";
-import type { ConfirmationResult } from "./firebase";
 import { apiUrl } from "./api";
 
 const AUTH_KEY = "medai_user";
+const TOKEN_KEY = "medai_token";
 
 export interface User {
   id: string;
-  username: string | null;
-  phone: string;
-  email?: string;
+  username: string;
+  email: string;
 }
 
 // ─── Local storage helpers ───────────────────────────────────
@@ -35,116 +33,98 @@ export function setUser(user: User): void {
 export function clearUser(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 }
 
 export function isAuthenticated(): boolean {
-  return getCurrentUser() !== null && auth.currentUser !== null;
+  return getCurrentUser() !== null && getAuthToken() !== null;
 }
 
-// ─── Firebase token helper ───────────────────────────────────
+// ─── Token helpers ───────────────────────────────────────────
 
-export async function getIdToken(): Promise<string | null> {
-  const user = auth.currentUser;
-  if (!user) return null;
-  return user.getIdToken();
+export function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
 }
 
-// ─── Phone OTP flow ──────────────────────────────────────────
-
-let confirmationResult: ConfirmationResult | null = null;
-
-export function setupRecaptcha(elementId: string): RecaptchaVerifier {
-  const verifier = new RecaptchaVerifier(auth, elementId, {
-    size: "invisible",
-    callback: () => {
-      // reCAPTCHA solved — will proceed with signInWithPhoneNumber
-    },
-  });
-  return verifier;
+function setToken(token: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(TOKEN_KEY, token);
 }
 
-export async function sendPhoneOtp(
-  phoneNumber: string,
-  recaptchaVerifier: RecaptchaVerifier
-): Promise<void> {
-  confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
-}
+// ─── Signup ──────────────────────────────────────────────────
 
-export interface VerifyResult {
-  user: User;
-  profileComplete: boolean;
-  isNewUser: boolean;
-}
-
-export async function verifyPhoneOtp(code: string): Promise<VerifyResult> {
-  if (!confirmationResult) {
-    throw new Error("No OTP request in progress. Please request a new code.");
-  }
-
-  // Confirm the OTP with Firebase
-  const userCredential = await confirmationResult.confirm(code);
-  const idToken = await userCredential.user.getIdToken();
-
-  // Send token to backend to create/login user
-  const res = await fetch(apiUrl("/api/auth/verify-phone"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${idToken}`,
-    },
-  });
-
-  const data = await res.json();
-
-  if (!res.ok || !data.authenticated) {
-    throw new Error(data.message || "Authentication failed");
-  }
-
-  const user: User = data.user;
-  setUser(user);
-  confirmationResult = null;
-  return {
-    user,
-    profileComplete: data.profileComplete,
-    isNewUser: data.isNewUser,
-  };
-}
-
-// ─── Complete Profile ────────────────────────────────────────
-
-export interface CompleteProfileData {
+export interface SignupData {
   username: string;
   email: string;
-  password?: string;
+  password: string;
 }
 
-export async function completeProfile(profileData: CompleteProfileData): Promise<User> {
-  const token = await getIdToken();
-  if (!token) throw new Error("Not authenticated");
-
-  const res = await fetch(apiUrl("/api/auth/complete-profile"), {
+export async function signup(data: SignupData): Promise<User> {
+  const res = await fetch(apiUrl("/api/auth/signup"), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(profileData),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
   });
 
-  const data = await res.json();
+  const json = await res.json();
 
   if (!res.ok) {
-    throw new Error(data.message || "Failed to complete profile");
+    throw new Error(json.message || "Signup failed");
   }
 
-  const user: User = data.user;
-  setUser(user);
-  return user;
+  setToken(json.token);
+  setUser(json.user);
+  return json.user;
+}
+
+// ─── Login ───────────────────────────────────────────────────
+
+export interface LoginData {
+  email: string;
+  password: string;
+}
+
+export async function login(data: LoginData): Promise<User> {
+  const res = await fetch(apiUrl("/api/auth/login"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  const json = await res.json();
+
+  if (!res.ok) {
+    throw new Error(json.message || "Login failed");
+  }
+
+  setToken(json.token);
+  setUser(json.user);
+  return json.user;
+}
+
+// ─── Fetch current user ─────────────────────────────────────
+
+export async function fetchCurrentUser(): Promise<User> {
+  const token = getAuthToken();
+  if (!token) throw new Error("Not authenticated");
+
+  const res = await fetch(apiUrl("/api/auth/me"), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const json = await res.json();
+
+  if (!res.ok) {
+    throw new Error(json.message || "Failed to fetch user");
+  }
+
+  setUser(json.user);
+  return json.user;
 }
 
 // ─── Logout ──────────────────────────────────────────────────
 
 export async function logout(): Promise<void> {
-  await auth.signOut();
   clearUser();
 }
