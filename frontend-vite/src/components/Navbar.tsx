@@ -40,7 +40,7 @@ export function Navbar() {
                 Log in
               </Link>
               <Link
-                to="/auth/login"
+                to="/auth/signup"
                 className="rounded-button inline-flex h-10 items-center justify-center bg-primary-500 px-5 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-600 active:scale-[0.98]"
               >
                 Get started
@@ -79,7 +79,7 @@ export function Navbar() {
                   <Link to="/auth/login" className="rounded-button px-4 py-3 text-sm font-medium text-content-primary hover:bg-surface-muted" onClick={() => setMobileOpen(false)}>
                     Log in
                   </Link>
-                  <Link to="/auth/login" className="rounded-button mt-2 bg-primary-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-primary-600" onClick={() => setMobileOpen(false)}>
+                  <Link to="/auth/signup" className="rounded-button mt-2 bg-primary-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-primary-600" onClick={() => setMobileOpen(false)}>
                     Get started
                   </Link>
                 </>

@@ -46,16 +46,18 @@ export function DashboardLayout() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileCareRef = useRef<HTMLDivElement>(null);
 
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   useEffect(() => {
     setUser(getCurrentUser());
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (mounted && !user) {
+    if (mounted && !user && !isLoggingOut) {
       navigate("/auth/login", { replace: true });
     }
-  }, [mounted, user, navigate]);
+  }, [mounted, user, isLoggingOut, navigate]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -68,6 +70,7 @@ export function DashboardLayout() {
   }, []);
 
   const handleLogout = async () => {
+    setIsLoggingOut(true);
     setDropdownOpen(false);
     await logout();
     setUser(null);

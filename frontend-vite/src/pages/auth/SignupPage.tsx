@@ -155,7 +155,7 @@ export function SignupPage() {
             <p className="text-center text-sm text-content-secondary">
               Already have an account?{" "}
               <Link to="/auth/login" className="font-semibold text-primary-600 hover:underline">
-                Sign in
+                Log in
               </Link>
             </p>
             <p className="text-center text-sm text-content-secondary">
