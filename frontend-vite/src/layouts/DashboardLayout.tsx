@@ -48,6 +48,21 @@ export function DashboardLayout() {
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  // Helper to determine the current page title based on the route
+  const getPageTitle = () => {
+    if (pathname === "/dashboard") return "Dashboard";
+    if (pathname === "/dashboard/chat") return "AI Doctor";
+    if (pathname === "/dashboard/reports") return "Medical Reports";
+    if (pathname === "/dashboard/appointment") return "Book Doctor";
+    if (pathname === "/dashboard/emergency") return "Emergency";
+    if (pathname === "/dashboard/lab-tests") return "Lab Tests";
+    if (pathname === "/dashboard/health-plan") return "Health Plan";
+    if (pathname === "/dashboard/profile") return "My Profile";
+    if (pathname === "/dashboard/settings") return "Settings";
+    if (pathname === "/dashboard/help") return "Help & Support";
+    return "MedAI";
+  };
+
   useEffect(() => {
     setUser(getCurrentUser());
     setMounted(true);
@@ -184,7 +199,7 @@ export function DashboardLayout() {
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-stone-200 bg-surface-elevated px-4 lg:px-8">
           <div className="flex items-center gap-2">
             <Logo size={28} className="h-7 w-7" />
-            <h1 className="text-lg font-bold tracking-tight text-content-primary lg:text-xl">MedAI</h1>
+            <h1 className="text-lg font-bold tracking-tight text-content-primary lg:text-xl">{getPageTitle()}</h1>
           </div>
           <div className="relative" ref={dropdownRef}>
             <button
