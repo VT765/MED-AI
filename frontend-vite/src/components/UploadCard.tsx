@@ -1,13 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Upload, FileText, X, CheckCircle2, ShieldAlert, HeartPulse, 
+import {
+  Upload, FileText, X, CheckCircle2, ShieldAlert, HeartPulse,
   BrainCircuit, Microscope, RefreshCw, Activity, ArrowRight
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { MOCK_REPORT_ANALYSIS } from "@/lib/mockData";
+import { Card, CardContent } from "@/components/ui/card";
+import { ReportResult } from "@/components/ReportResult";
+import type { ReportAnalysisResponse } from "@/types/report";
+import { apiUrl } from "@/lib/api";
 
 const ACCEPT = "application/pdf,image/jpeg,image/png,image/jpg";
 const FORMATS = "PDF, JPG, PNG";
@@ -23,7 +24,8 @@ const SCANNING_STEPS = [
 export function UploadCard() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<typeof MOCK_REPORT_ANALYSIS | null>(null);
+  const [analysis, setAnalysis] = useState<ReportAnalysisResponse | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scanStep, setScanStep] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -44,6 +46,7 @@ export function UploadCard() {
   const handleFile = useCallback((selected: File) => {
     setFile(selected);
     setAnalysis(null);
+    setAnalysisError(null);
     if (selected.type.startsWith("image/")) setPreview(URL.createObjectURL(selected));
     else setPreview(null);
   }, []);
@@ -65,21 +68,31 @@ export function UploadCard() {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
     setAnalysis(null);
+    setAnalysisError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!file) return;
     setIsAnalyzing(true);
-    setTimeout(() => {
-      setAnalysis(MOCK_REPORT_ANALYSIS);
+    setAnalysisError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(apiUrl("api/reports/analyze"), {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      const errMsg = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail || data.message || "Analysis failed";
+      if (!res.ok) throw new Error(typeof errMsg === "string" ? errMsg : "Analysis failed");
+      setAnalysis(data as ReportAnalysisResponse);
+    } catch (err) {
+      setAnalysisError(err instanceof Error ? err.message : "Analysis failed");
+    } finally {
       setIsAnalyzing(false);
-    }, 5500); // Wait enough time for the full animation
+    }
   };
-
-  const severityLabels: Record<string, string> = { normal: "Normal Result", mild: "Mild Concern", moderate: "Moderate Risk", high: "High Priority" };
-  const severityColors: Record<string, string> = { normal: "bg-emerald-100 text-emerald-800 border-emerald-200", mild: "bg-amber-100 text-amber-800 border-amber-200", moderate: "bg-orange-100 text-orange-800 border-orange-200", high: "bg-red-100 text-red-800 border-red-200" };
-  const SeverityIcon = analysis?.severity === "normal" ? CheckCircle2 : ShieldAlert;
 
   // Render the animated Analyzing state
   if (isAnalyzing) {
@@ -147,8 +160,8 @@ export function UploadCard() {
     );
   }
 
-  // Render Result generated state
-  if (file && analysis) {
+  // Render Result generated state (success or error)
+  if (file && (analysis || analysisError)) {
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-4xl mx-auto w-full space-y-6">
         
@@ -180,85 +193,34 @@ export function UploadCard() {
           </div>
         </div>
 
-        {/* AI Response Message */}
-        <div className="flex justify-start w-full">
-          <div className="flex items-start gap-4 max-w-[90%] sm:max-w-[85%]">
-             <div className="h-9 w-9 mt-1 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-md shrink-0 border-2 border-white ring-1 ring-primary-100">
-                <BrainCircuit className="h-5 w-5 text-white" />
-             </div>
-             <div className="bg-white rounded-3xl rounded-tl-sm border border-gray-100 p-6 shadow-card overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-50 pb-4">
-                  <h3 className="text-sm font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    Analysis Complete
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  </h3>
-                  {analysis.severity && (
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${severityColors[analysis.severity] || "bg-gray-100 text-gray-800"}`}>
-                      <SeverityIcon className="w-3 h-3" />
-                      {severityLabels[analysis.severity]}
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-6">
-                  {/* Summary Chat Bubble */}
-                  <div className="prose prose-sm prose-primary">
-                    <p className="text-gray-700 leading-relaxed font-medium">{analysis.summary}</p>
-                  </div>
-
-                  {/* Extracted Metrics */}
-                  {analysis.keyMetrics && analysis.keyMetrics.length > 0 && (
-                    <div className="bg-primary-50/50 rounded-2xl p-4 border border-primary-50">
-                      <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-primary-700/70">Key Metrics Detected</h4>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {analysis.keyMetrics.map((m, i) => (
-                          <div key={i} className={`flex flex-col justify-between rounded-xl p-3 bg-white border shadow-xs ${m.status === "elevated" ? "border-amber-200" : m.status === "low" ? "border-blue-200" : "border-gray-100"}`}>
-                            <span className="text-xs font-medium text-gray-500 mb-1">{m.label}</span>
-                            <span className={`text-base font-bold ${m.status === "elevated" ? "text-amber-600" : m.status === "low" ? "text-blue-600" : "text-gray-900"}`}>
-                              {m.value}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Recommended Action Plan */}
-                  <div>
-                    <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-500">Recommended Next Steps</h4>
-                    <ul className="space-y-3">
-                      {analysis.suggestedSteps.map((step, i) => (
-                        <li key={i} className="flex gap-3 text-sm text-gray-700 items-start p-3 rounded-xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700 ring-2 ring-white shadow-xs">
-                              {i + 1}
-                          </span>
-                          <span className="leading-relaxed pt-0.5">{step}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Quick Actions (Chat buttons) */}
-                <div className="mt-8 pt-5 border-t border-gray-100 flex flex-wrap gap-2 sm:gap-3">
-                   <Link to="/dashboard/appointment" className="flex items-center justify-center gap-2 rounded-full bg-primary-600 px-5 py-2.5 text-sm font-medium text-white shadow-soft transition-all hover:bg-primary-700 hover:shadow-cardHover hover:-translate-y-0.5 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
-                      <HeartPulse className="w-4 h-4" />
-                      Consult Doctor
-                   </Link>
-                   <Button variant="outline" onClick={handleRemove} className="rounded-full px-5 py-2.5 bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900 transition-colors focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 shadow-sm font-medium">
-                      <RefreshCw className="mr-2 h-4 w-4 text-gray-400" />
-                      Scan Another Report
-                   </Button>
-                </div>
-             </div>
+        {/* AI Response or Error */}
+        {analysisError ? (
+          <div className="flex justify-start w-full">
+            <div className="flex items-start gap-4 max-w-[90%] sm:max-w-[85%]">
+              <div className="h-9 w-9 mt-1 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <ShieldAlert className="h-5 w-5 text-red-600" />
+              </div>
+              <Card className="flex-1 border-red-200 bg-red-50/50">
+                <CardContent className="pt-4 pb-4">
+                  <h4 className="text-sm font-bold text-red-800 mb-1">Analysis Failed</h4>
+                  <p className="text-sm text-red-700">{analysisError}</p>
+                  <Button variant="outline" size="sm" onClick={handleRemove} className="mt-3 border-red-200 text-red-700 hover:bg-red-100">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Try Again
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
+        ) : (
+          analysis && <ReportResult analysis={analysis} onRemove={handleRemove} />
+        )}
       </motion.div>
     );
   }
 
   // Render Pre-upload / Ready to analyze state
-  if (file && !analysis) {
+  if (file && !analysis && !analysisError) {
     return (
       <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl mx-auto w-full">
         <Card className="shadow-soft border-gray-200 overflow-hidden bg-white hover:shadow-cardHover transition-shadow duration-300">
