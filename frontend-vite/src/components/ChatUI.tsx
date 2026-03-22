@@ -19,11 +19,11 @@ function formatTime(date: Date) {
 
 export function ChatUI() {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { 
-      id: "0", 
-      role: "assistant", 
-      content: "Hello! I am your AI medical assistant. How can I help you today? You can describe your symptoms or ask me general health questions.", 
-      timestamp: new Date() 
+    {
+      id: "0",
+      role: "assistant",
+      content: "Hello! I am your AI medical assistant. How can I help you today? You can describe your symptoms or ask me general health questions.",
+      timestamp: new Date()
     },
   ]);
   const [input, setInput] = useState("");
@@ -116,38 +116,38 @@ export function ChatUI() {
 
     try {
       const token = getAuthToken();
-      
+
       // If we have a document, we use the original logic if it exists, otherwise we just query the LLM. 
       // Note: the backend `/api/chat` route requires `documentId` and `question`.
       // Since the user wants to chat WITHOUT a document, we will build a composite prompt and hit the new `/llm/analyze` LLM directly if there's no chat history route on the backend for general chat. 
       // If the backend `/api/chat` route *does* support None for documentId, we use that. 
       // Let's assume the backend LLM service on port 8001 is the best way to handle generic medical AI.
-      
+
       let aiResponseText = "";
 
       if (documentId && extractedDocText) {
-         // Has document: Include document context in the prompt for port 8001 LLM
-         const compositePrompt = `User question: ${trimmed}\n\nContext block (Extracted Document):\n${extractedDocText.substring(0, 3000)}`;
-         const llmRes = await fetch(apiUrl("/llm/analyze"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: compositePrompt }),
-         });
-         
-         if (!llmRes.ok) throw new Error("AI Chat failed");
-         const llmData = await llmRes.json();
-         aiResponseText = llmData.analysis || "I could not generate an analysis.";
+        // Has document: Include document context in the prompt for port 8001 LLM
+        const compositePrompt = `User question: ${trimmed}\n\nContext block (Extracted Document):\n${extractedDocText.substring(0, 3000)}`;
+        const llmRes = await fetch(apiUrl("/llm/analyze"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: compositePrompt }),
+        });
+
+        if (!llmRes.ok) throw new Error("AI Chat failed");
+        const llmData = await llmRes.json();
+        aiResponseText = llmData.analysis || "I could not generate an analysis.";
       } else {
-         // No document: Standard prompt
-         const llmRes = await fetch(apiUrl("/llm/analyze"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: `Patient asks: ${trimmed}` }),
-         });
-         
-         if (!llmRes.ok) throw new Error("AI Chat failed");
-         const llmData = await llmRes.json();
-         aiResponseText = llmData.analysis || "I could not generate a response.";
+        // No document: Standard prompt
+        const llmRes = await fetch(apiUrl("/llm/analyze"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: `Patient asks: ${trimmed}` }),
+        });
+
+        if (!llmRes.ok) throw new Error("AI Chat failed");
+        const llmData = await llmRes.json();
+        aiResponseText = llmData.analysis || "I could not generate a response.";
       }
 
       setMessages((prev) => [
@@ -182,19 +182,19 @@ export function ChatUI() {
   const handleQuickPrompt = (prompt: string) => {
     setInput(prompt);
     if (textareaRef.current) {
-        textareaRef.current.focus();
+      textareaRef.current.focus();
     }
   };
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-stone-200 bg-surface shadow-card relative" role="region" aria-label="AI Doctor chat">
-      
+
       {/* Header */}
       <div className="shrink-0 border-b border-stone-200 bg-surface px-6 py-4 flex items-center justify-between z-10 sticky top-0 backdrop-blur-md bg-white/90 relative overflow-hidden">
         {/* Ambient subtle animation in the header */}
         <div className="absolute top-0 right-1/4 w-32 h-32 bg-primary-300/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
         <div className="absolute bottom-0 right-1/3 w-24 h-24 bg-teal-300/10 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '5s' }} />
-        
+
         <div className="flex items-center gap-4 relative z-10">
           <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-50 to-primary-100 text-primary-700 shadow-inner border border-primary-200" aria-hidden>
             <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 bg-primary-400/20 rounded-full blur-md" />
@@ -203,19 +203,19 @@ export function ChatUI() {
           <div>
             <h3 className="text-base font-bold text-gray-900 leading-tight">AI Doctor</h3>
             <p className="text-sm font-medium flex items-center gap-1.5 mt-0.5 text-primary-600">
-               <span className="relative flex h-2 w-2">
-                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
-                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
-               </span>
-               Online • Ready to assist
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
+              </span>
+              Online • Ready to assist
             </p>
           </div>
         </div>
-        
+
         {fileName && (
           <div className="hidden sm:flex items-center gap-2 bg-primary-50 px-3 py-1.5 rounded-full border border-primary-100">
-             <FileText className="w-4 h-4 text-primary-600" />
-             <span className="text-xs font-semibold text-primary-700 max-w-[150px] truncate">{fileName}</span>
+            <FileText className="w-4 h-4 text-primary-600" />
+            <span className="text-xs font-semibold text-primary-700 max-w-[150px] truncate">{fileName}</span>
           </div>
         )}
       </div>
@@ -229,13 +229,13 @@ export function ChatUI() {
               const isSystem = msg.role === "system";
 
               if (isSystem) {
-                 return (
-                   <motion.div key={msg.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center my-4">
-                      <div className="bg-gray-100 border border-gray-200 rounded-full px-4 py-1.5 text-xs font-medium text-gray-500">
-                         {msg.content}
-                      </div>
-                   </motion.div>
-                 )
+                return (
+                  <motion.div key={msg.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center my-4">
+                    <div className="bg-gray-100 border border-gray-200 rounded-full px-4 py-1.5 text-xs font-medium text-gray-500">
+                      {msg.content}
+                    </div>
+                  </motion.div>
+                )
               }
 
               return (
@@ -245,17 +245,17 @@ export function ChatUI() {
                       <Bot className="h-4 w-4 text-white" />
                     </div>
                   )}
-                  
+
                   <div className={cn(
-                      "max-w-[85%] sm:max-w-[75%] px-5 py-3.5 text-[15px] leading-relaxed shadow-sm",
-                      isUser 
-                        ? "rounded-2xl rounded-tr-sm bg-primary-600 text-white" 
-                        : "rounded-2xl rounded-tl-sm border border-stone-200 bg-white text-gray-800"
-                    )}
+                    "max-w-[85%] sm:max-w-[75%] px-5 py-3.5 text-[15px] leading-relaxed shadow-sm",
+                    isUser
+                      ? "rounded-2xl rounded-tr-sm bg-primary-600 text-white"
+                      : "rounded-2xl rounded-tl-sm border border-stone-200 bg-white text-gray-800"
+                  )}
                   >
                     <div className="whitespace-pre-wrap">{msg.content}</div>
                     <p className={cn("mt-2 text-[10px] font-medium text-right", isUser ? "text-primary-200" : "text-gray-400")}>
-                       {formatTime(msg.timestamp)}
+                      {formatTime(msg.timestamp)}
                     </p>
                   </div>
 
@@ -286,17 +286,17 @@ export function ChatUI() {
 
           {/* Empty state suggestions */}
           {messages.length === 1 && !isLoading && (
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="flex flex-wrap gap-2 mt-4 ml-11">
-                {quickPrompts.map((prompt, i) => (
-                   <button 
-                     key={i} 
-                     onClick={() => handleQuickPrompt(prompt)}
-                     className="bg-white border border-primary-200 text-primary-700 text-sm py-1.5 px-3 rounded-full hover:bg-primary-50 transition-colors shadow-sm"
-                   >
-                     {prompt}
-                   </button>
-                ))}
-             </motion.div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="flex flex-wrap gap-2 mt-4 ml-11">
+              {quickPrompts.map((prompt, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleQuickPrompt(prompt)}
+                  className="bg-white border border-primary-200 text-primary-700 text-sm py-1.5 px-3 rounded-full hover:bg-primary-50 transition-colors shadow-sm"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </motion.div>
           )}
 
           <div ref={bottomRef} className="h-4" />
@@ -306,15 +306,15 @@ export function ChatUI() {
       {/* Input Dock */}
       <div className="shrink-0 bg-white p-4 sm:p-6 pb-6 sm:pb-8 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)] border-t border-gray-100 z-20">
         <div className="mx-auto max-w-3xl relative">
-          
+
           {inputError && (
             <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} id="input-error" className="absolute -top-7 left-0 text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-md" role="alert">
-               {inputError}
+              {inputError}
             </motion.p>
           )}
 
           <div className={`relative flex items-end gap-2 rounded-2xl border bg-white p-2 shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-primary-500/50 ${inputError ? 'border-red-300 ring-4 ring-red-50' : 'border-gray-200 hover:border-gray-300'}`}>
-            
+
             <input
               type="file"
               ref={fileInputRef}
@@ -322,7 +322,7 @@ export function ChatUI() {
               accept="application/pdf"
               onChange={handleUpload}
             />
-            
+
             <Button
               type="button"
               variant="ghost"
@@ -334,37 +334,37 @@ export function ChatUI() {
             >
               <Paperclip className="h-5 w-5" />
             </Button>
-            
-            <textarea 
+
+            <textarea
               ref={textareaRef}
-              value={input} 
-              onChange={handleInput} 
-              onKeyDown={handleKeyDown} 
+              value={input}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
               placeholder="Describe your symptoms or ask a medical question..."
-              className="max-h-[120px] min-h-[44px] w-full resize-none bg-transparent py-3 text-[15px] outline-none placeholder:text-gray-400 disabled:opacity-50" 
-              disabled={isLoading || isUploading} 
-              aria-invalid={!!inputError} 
+              className="max-h-[120px] min-h-[44px] w-full resize-none bg-transparent py-3 text-[15px] outline-none placeholder:text-gray-400 disabled:opacity-50"
+              disabled={isLoading || isUploading}
+              aria-invalid={!!inputError}
               rows={1}
             />
-            
-            <Button 
-               type="button" 
-               onClick={handleSend} 
-               disabled={!input.trim() || isLoading || isUploading} 
-               className={`h-10 w-10 shrink-0 rounded-xl mb-1 mr-1 transition-all duration-200 flex items-center justify-center p-0
-                 ${input.trim() && !isLoading ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-soft hover:shadow-md' : 'bg-gray-100 text-gray-400'}`} 
-               aria-label="Send message"
+
+            <Button
+              type="button"
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading || isUploading}
+              className={`h-10 w-10 shrink-0 rounded-xl mb-1 mr-1 transition-all duration-200 flex items-center justify-center p-0
+                 ${input.trim() && !isLoading ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-soft hover:shadow-md' : 'bg-gray-100 text-gray-400'}`}
+              aria-label="Send message"
             >
               <Send className="h-[18px] w-[18px] ml-0.5" aria-hidden />
             </Button>
-            
+
           </div>
           <p className="text-center text-[10px] text-gray-400 mt-3 font-medium">
-             MedAI can make mistakes. Please verify important medical information with a doctor.
+            MedAI can make mistakes. Please verify important medical information with a doctor.
           </p>
         </div>
       </div>
-      
+
     </div>
   );
 }

@@ -1,24 +1,35 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Upload, FileText, X, CheckCircle2, ShieldAlert, HeartPulse,
-  BrainCircuit, Microscope, RefreshCw, Activity, ArrowRight
+  Upload,
+  FileText,
+  X,
+  CheckCircle2,
+  ShieldAlert,
+  HeartPulse,
+  BrainCircuit,
+  Microscope,
+  RefreshCw,
+  Activity,
+  ArrowRight,
+  ImagePlus,
+  FileCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { ReportResult } from "@/components/ReportResult";
 import type { ReportAnalysisResponse } from "@/types/report";
 import { apiUrl } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 const ACCEPT = "application/pdf,image/jpeg,image/png,image/jpg";
 const FORMATS = "PDF, JPG, PNG";
 
 const SCANNING_STEPS = [
-  { text: "Initializing diagnostic scanners...", icon: BrainCircuit },
-  { text: "Extracting vital health data...", icon: FileText },
-  { text: "Cross-referencing medical databases...", icon: Microscope },
-  { text: "Synthesizing diagnostic summary...", icon: Activity },
-  { text: "Finalizing health report...", icon: CheckCircle2 }
+  { text: "Extracting text from your document...", icon: FileCode },
+  { text: "Identifying key health metrics...", icon: Microscope },
+  { text: "Analyzing findings & patterns...", icon: BrainCircuit },
+  { text: "Generating structured summary...", icon: Activity },
+  { text: "Finalizing recommendations...", icon: CheckCircle2 },
 ];
 
 export function UploadCard() {
@@ -30,13 +41,21 @@ export function UploadCard() {
   const [scanStep, setScanStep] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resultTopRef = useRef<HTMLDivElement>(null);
+
+  // Scroll result into comfortable view when analysis loads
+  useLayoutEffect(() => {
+    if (analysis && resultTopRef.current) {
+      resultTopRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [analysis]);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
     if (isAnalyzing) {
       interval = setInterval(() => {
         setScanStep((prev) => (prev < SCANNING_STEPS.length - 1 ? prev + 1 : prev));
-      }, 1000);
+      }, 800);
     } else {
       setScanStep(0);
     }
@@ -94,124 +113,110 @@ export function UploadCard() {
     }
   };
 
-  // Render the animated Analyzing state
+  // ——— Analyzing state ———
   if (isAnalyzing) {
     const CurrentIcon = SCANNING_STEPS[scanStep].icon;
-    
     return (
-      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl mx-auto w-full">
-        <Card className="overflow-hidden border-primary-200 shadow-card relative bg-white">
-          <div className="absolute top-0 left-0 w-full h-1.5 bg-primary-100">
-            <motion.div 
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-2xl mx-auto"
+      >
+        <div className="relative overflow-hidden rounded-2xl bg-white border border-stone-200 shadow-xl shadow-stone-200/50">
+          {/* Progress bar */}
+          <div className="h-1.5 bg-stone-100">
+            <motion.div
               className="h-full bg-primary-600 rounded-r-full"
               initial={{ width: "0%" }}
               animate={{ width: "100%" }}
-              transition={{ duration: 5.5, ease: "linear" }}
+              transition={{ duration: 4, ease: "easeInOut" }}
             />
           </div>
-          <CardContent className="pt-16 pb-14 flex flex-col items-center justify-center text-center">
-            
-            {/* Pulsating Heart/ Medical Icon */}
-            <div className="relative mb-8">
-              <motion.div 
-                animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.7, 0.3] }} 
-                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute inset-0 bg-primary-200 rounded-full blur-xl"
-              />
-              <motion.div 
-                animate={{ rotate: 360 }} 
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                className="absolute -inset-4 border border-dashed border-primary-300 rounded-full opacity-50"
-              />
-              <div className="relative bg-white p-5 rounded-3xl shadow-soft border border-primary-100 flex items-center justify-center">
-                <HeartPulse className="h-10 w-10 text-primary-600 drop-shadow-sm" />
-              </div>
-            </div>
-            
-            <h3 className="text-xl font-bold text-gray-900 mb-2 tracking-tight">AI Medical Analysis in progress</h3>
-            
-            {/* Dynamic Scanning Text */}
-            <div className="h-8 mb-4 overflow-hidden flex items-center justify-center w-full">
-              <AnimatePresence mode="wait">
-                <motion.div 
-                  key={scanStep}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -15 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex items-center gap-2 text-sm font-medium text-primary-600 bg-primary-50 px-3 py-1.5 rounded-full"
-                >
-                  <CurrentIcon className="w-4 h-4" />
-                  {SCANNING_STEPS[scanStep].text}
-                </motion.div>
-              </AnimatePresence>
+
+          <div className="px-6 sm:px-10 py-12 sm:py-16">
+            {/* Icon */}
+            <div className="flex justify-center mb-8">
+              <motion.div
+                animate={{ scale: [1, 1.05, 1], rotate: [0, 2, -2, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="relative"
+              >
+                <div className="absolute inset-0 bg-primary-400/20 rounded-full blur-2xl scale-150" />
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/30 border border-primary-400/30">
+                  <HeartPulse className="h-10 w-10 text-white" />
+                </div>
+              </motion.div>
             </div>
 
-            {/* Step Indicators */}
-            <div className="mt-6 flex items-center justify-center gap-2 w-full max-w-xs">
-               {SCANNING_STEPS.map((_, i) => (
-                 <div key={i} className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${scanStep >= i ? 'bg-primary-500 shadow-sm shadow-primary-500/30' : 'bg-gray-100'}`} />
-               ))}
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 text-center mb-2">
+              Analyzing your report
+            </h3>
+            <p className="text-sm text-gray-500 text-center mb-8">
+              Our AI is reading and structuring your medical data
+            </p>
+
+            {/* Step indicator */}
+            <div className="flex items-center justify-center gap-3 py-4 px-5 rounded-xl bg-stone-50 border border-stone-100">
+              <CurrentIcon className="h-5 w-5 text-primary-600 shrink-0" />
+              <span className="text-sm font-medium text-gray-700">
+                {SCANNING_STEPS[scanStep].text}
+              </span>
             </div>
 
-          </CardContent>
-        </Card>
+            <div className="mt-6 flex justify-center gap-1.5">
+              {SCANNING_STEPS.map((_, i) => (
+                <motion.div
+                  key={i}
+                  layout
+                  className={cn(
+                    "h-1.5 rounded-full transition-colors duration-300",
+                    scanStep >= i ? "w-8 bg-primary-500" : "w-1.5 bg-stone-200"
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </motion.div>
     );
   }
 
-  // Render Result generated state (success or error)
+  // ——— Result / Error state ———
   if (file && (analysis || analysisError)) {
     return (
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="max-w-4xl mx-auto w-full space-y-6">
-        
-        {/* User Message showing the uploaded document */}
-        <div className="flex justify-end w-full">
-          <div className="flex items-end gap-3 max-w-[80%]">
-             <div className="bg-primary-50 rounded-2xl rounded-tr-sm border border-primary-100 p-4 shadow-sm">
-                <div className="flex items-center justify-between border-b border-primary-100/60 pb-3 mb-3">
-                   <span className="text-sm font-medium text-primary-800">Uploaded Document</span>
-                   <Button variant="ghost" size="icon" onClick={handleRemove} className="text-gray-400 hover:text-red-600 hover:bg-white/50 -mr-2 h-7 w-7 rounded-full">
-                     <X className="h-4 w-4" />
-                   </Button>
-                </div>
-                {preview ? (
-                  <img src={preview} alt="Preview" className="max-h-48 w-auto rounded-lg border border-primary-200 shadow-sm" />
-                ) : (
-                  <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-primary-100">
-                    <FileText className="h-8 w-8 text-primary-400" />
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm max-w-[200px] truncate">{file.name}</p>
-                      <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB • {file.type.split('/')[1]?.toUpperCase() || 'DOCUMENT'}</p>
-                    </div>
-                  </div>
-                )}
-             </div>
-             <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center shadow-sm shrink-0 border border-white">
-                <span className="text-xs font-bold text-white">ME</span>
-             </div>
-          </div>
-        </div>
-
-        {/* AI Response or Error */}
+      <motion.div
+        ref={resultTopRef}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+        className="w-full scroll-mt-4"
+      >
         {analysisError ? (
-          <div className="flex justify-start w-full">
-            <div className="flex items-start gap-4 max-w-[90%] sm:max-w-[85%]">
-              <div className="h-9 w-9 mt-1 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                <ShieldAlert className="h-5 w-5 text-red-600" />
-              </div>
-              <Card className="flex-1 border-red-200 bg-red-50/50">
-                <CardContent className="pt-4 pb-4">
-                  <h4 className="text-sm font-bold text-red-800 mb-1">Analysis Failed</h4>
-                  <p className="text-sm text-red-700">{analysisError}</p>
-                  <Button variant="outline" size="sm" onClick={handleRemove} className="mt-3 border-red-200 text-red-700 hover:bg-red-100">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div className="rounded-2xl border-2 border-red-200 bg-red-50/80 p-6 sm:p-8 shadow-lg shadow-red-100/50">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-100">
+                  <ShieldAlert className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-lg font-bold text-red-900">Analysis failed</h4>
+                  <p className="mt-2 text-sm text-red-700">{analysisError}</p>
+                  <Button
+                    variant="outline"
+                    onClick={handleRemove}
+                    className="mt-4 border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800"
+                  >
                     <RefreshCw className="mr-2 h-4 w-4" />
-                    Try Again
+                    Try again
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
-          </div>
+          </motion.div>
         ) : (
           analysis && <ReportResult analysis={analysis} onRemove={handleRemove} />
         )}
@@ -219,88 +224,128 @@ export function UploadCard() {
     );
   }
 
-  // Render Pre-upload / Ready to analyze state
+  // ——— File selected, ready to analyze ———
   if (file && !analysis && !analysisError) {
     return (
-      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl mx-auto w-full">
-        <Card className="shadow-soft border-gray-200 overflow-hidden bg-white hover:shadow-cardHover transition-shadow duration-300">
-          <CardContent className="p-0">
-            <div className="flex flex-col items-center justify-center py-10 px-6 border-b border-gray-100 bg-gradient-to-b from-gray-50 to-white">
-              <div className="relative mb-5">
-                 <div className="bg-primary-100 p-4 rounded-2xl text-primary-600 shadow-inner">
-                   <FileText className="h-10 w-10" />
-                 </div>
-                 <button onClick={handleRemove} className="absolute -top-3 -right-3 bg-white text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full h-8 w-8 flex items-center justify-center border shadow-sm transition-colors">
-                   <X className="h-4 w-4" />
-                 </button>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-2xl mx-auto"
+      >
+        <div className="rounded-2xl border border-stone-200 bg-white shadow-xl shadow-stone-200/50 overflow-hidden">
+          <div className="p-6 sm:p-8">
+            <div className="flex items-start gap-4">
+              {preview ? (
+                <img
+                  src={preview}
+                  alt="Preview"
+                  className="h-24 w-24 sm:h-28 sm:w-28 rounded-xl object-cover border border-stone-200 shrink-0"
+                />
+              ) : (
+                <div className="flex h-24 w-24 sm:h-28 sm:w-28 shrink-0 items-center justify-center rounded-xl bg-primary-50 border border-primary-100">
+                  <FileText className="h-10 w-10 sm:h-12 sm:w-12 text-primary-600" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h4 className="font-bold text-gray-900 truncate" title={file.name}>
+                      {file.name}
+                    </h4>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {(file.size / 1024).toFixed(1)} KB • {file.type.split("/")[1]?.toUpperCase() || "File"}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleRemove}
+                    className="shrink-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+                <p className="mt-3 text-sm font-medium text-primary-600 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Ready to analyze
+                </p>
               </div>
-              
-              <h4 className="font-bold text-gray-900 text-lg text-center truncate w-full max-w-sm" title={file.name}>
-                {file.name}
-              </h4>
-              <p className="text-sm font-medium text-gray-500 mt-1.5 flex items-center gap-2">
-                 {(file.size / 1024).toFixed(1)} KB <span className="w-1 h-1 bg-gray-300 rounded-full"/> Ready to scan
-              </p>
             </div>
-            
-            {preview && (
-              <div className="bg-gray-50 border-b border-gray-100 overflow-hidden flex justify-center p-4">
-                <img src={preview} alt="Preview" className="max-h-56 w-auto object-contain rounded-lg shadow-sm border border-gray-200" />
-              </div>
-            )}
-            
-            <div className="p-6 bg-white">
-              <Button 
-                onClick={handleAnalyze} 
-                className="w-full rounded-xl h-14 text-base font-bold shadow-card hover:shadow-cardHover bg-primary-600 hover:bg-primary-700 transition-all hover:-translate-y-0.5 group"
-              >
-                Start AI Analysis
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              <p className="text-xs text-center text-gray-400 mt-4 font-medium flex items-center justify-center gap-1.5">
-                 <ShieldAlert className="w-3.5 h-3.5" /> All analysis is secure and private
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+
+            <Button
+              onClick={handleAnalyze}
+              className="w-full mt-6 h-14 text-base font-semibold rounded-xl bg-primary-600 hover:bg-primary-700 shadow-lg shadow-primary-500/25 hover:shadow-xl hover:shadow-primary-500/30 hover:-translate-y-0.5 transition-all duration-200"
+            >
+              Start AI Analysis
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <p className="mt-4 text-center text-xs text-gray-400 flex items-center justify-center gap-1.5">
+              <ShieldAlert className="h-3.5 w-3.5" />
+              Analysis is secure and private
+            </p>
+          </div>
+        </div>
       </motion.div>
     );
   }
 
-  // Default Upload area
+  // ——— Default upload zone ———
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto w-full">
-      <Card className="shadow-none border border-transparent bg-transparent">
-        <CardContent className="p-0">
-          <input ref={fileInputRef} type="file" accept={ACCEPT} onChange={handleFileChange} className="hidden" aria-label="Choose file" />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            onDrop={handleDrop}
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-            onDragLeave={() => setIsDragging(false)}
-            className={`group flex w-full flex-col items-center justify-center rounded-3xl border-2 py-20 px-6 transition-all duration-300 outline-none
-              ${isDragging ? "bg-primary-50/50 border-primary-500 border-solid scale-[1.02] shadow-soft" : "bg-white border-dashed border-gray-300 hover:border-primary-400 hover:bg-gray-50/80 shadow-sm hover:shadow-soft"}`}
-          >
-            <div className={`flex h-20 w-20 items-center justify-center rounded-2xl mb-8 transition-all duration-300 shadow-sm
-              ${isDragging ? "bg-primary-600 text-white scale-110 shadow-primary-500/25" : "bg-primary-50 text-primary-600 group-hover:scale-105 group-hover:bg-primary-100"}`}>
-               <Upload className="h-10 w-10" aria-hidden />
-            </div>
-            
-            <h3 className="text-2xl font-bold text-gray-900 text-center tracking-tight">
-              Upload Medical Report
-            </h3>
-            <p className="mt-3 text-base text-gray-500 text-center max-w-sm leading-relaxed">
-              Drag & drop your PDF or image file here, or click to browse from your device.
-            </p>
-            
-            <div className="mt-8 flex items-center justify-center gap-2.5 rounded-full border border-gray-200 bg-white shadow-sm px-5 py-2 group-hover:border-gray-300 transition-colors">
-              <FileText className="h-4 w-4 text-gray-400" />
-              <span className="text-sm font-semibold text-gray-600">Supported formats: {FORMATS}</span>
-            </div>
-          </button>
-        </CardContent>
-      </Card>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="w-full max-w-2xl mx-auto"
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPT}
+        onChange={handleFileChange}
+        className="hidden"
+        aria-label="Upload medical report"
+      />
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        onDrop={handleDrop}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        className={cn(
+          "group relative w-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all duration-300 py-16 sm:py-20 px-8 overflow-hidden",
+          isDragging
+            ? "border-primary-500 bg-primary-50/60 scale-[1.02] shadow-lg shadow-primary-200/50"
+            : "border-stone-300 bg-white hover:border-primary-400 hover:bg-stone-50/80 shadow-sm hover:shadow-md"
+        )}
+      >
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-primary-500/5"
+          />
+        )}
+        <div
+          className={cn(
+            "relative flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-2xl mb-6 transition-all duration-300",
+            isDragging ? "bg-primary-600 text-white scale-110 shadow-lg" : "bg-primary-50 text-primary-600 group-hover:bg-primary-100 group-hover:scale-105"
+          )}
+        >
+          <ImagePlus className="h-10 w-10 sm:h-12 sm:w-12" />
+        </div>
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+          Upload your medical report
+        </h3>
+        <p className="text-sm sm:text-base text-gray-500 text-center max-w-sm mb-6">
+          Drag & drop a file here, or click to browse. We accept PDF and image files.
+        </p>
+        <div className="flex items-center gap-2 rounded-full bg-stone-100 px-4 py-2 text-sm font-medium text-gray-600">
+          <FileText className="h-4 w-4" />
+          {FORMATS}
+        </div>
+      </button>
     </motion.div>
   );
 }

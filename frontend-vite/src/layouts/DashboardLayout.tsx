@@ -246,7 +246,12 @@ export function DashboardLayout() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 pb-24 lg:p-8 lg:pb-8 lg:mx-auto lg:max-w-6xl lg:w-full">
+        <main className={cn(
+          "flex-1 flex flex-col min-h-0",
+          pathname === "/dashboard/reports"
+            ? "p-0 overflow-hidden"
+            : "p-4 pb-24 lg:p-8 lg:pb-8 lg:mx-auto lg:max-w-6xl lg:w-full"
+        )}>
           <Outlet />
         </main>
       </div>
