@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import { useState, useRef, useEffect } from "react";
 import {
   LayoutDashboard,
   MessageCircle,
@@ -9,9 +8,7 @@ import {
   Activity,
   FlaskConical,
   Home,
-  ChevronDown,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
 
@@ -73,15 +70,12 @@ export function Sidebar() {
           <div className="mt-2 space-y-1">
             {careItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               const isDisabled = item.disabled;
 
               if (isDisabled) {
                 return (
-                  <div
-                    key={item.href}
-                    className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-tertiary opacity-60"
-                  >
+                  <div key={item.href} className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-tertiary opacity-60">
                     <Icon className="h-5 w-5 shrink-0" aria-hidden />
                     <span>{item.label}</span>
                   </div>
@@ -108,7 +102,6 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* Pro / Upgrade Card (Optional visual filler for 'unique' feel) */}
         <div className="mt-8 rounded-2xl bg-gradient-to-br from-primary-50 to-primary-100 p-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-primary-600 shadow-sm">
             <Activity className="h-4 w-4" />
