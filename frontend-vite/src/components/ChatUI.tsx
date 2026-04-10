@@ -152,6 +152,8 @@ export function ChatUI() {
       }]);
     } finally {
       setIsLoading(false);
+      // Re-focus the input so the cursor stays in the text box
+      setTimeout(() => textareaRef.current?.focus(), 50);
     }
   }, [input, isLoading, sessionId, extractedDocText]);
 
