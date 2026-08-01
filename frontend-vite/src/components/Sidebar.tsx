@@ -4,7 +4,6 @@ import {
   MessageCircle,
   FileText,
   Calendar,
-  Ambulance,
   Activity,
   FlaskConical,
   Home,
@@ -21,7 +20,7 @@ const careItems = [
   { href: "/dashboard/chat", label: "AI Doctor", icon: MessageCircle },
   { href: "/dashboard/reports", label: "Medical Reports", icon: FileText },
   { href: "/dashboard/appointment", label: "Book Doctor Appointment", icon: Calendar },
-  { href: "/dashboard/emergency", label: "Emergency", icon: Ambulance },
+
   { href: "/dashboard/lab-tests", label: "Lab Tests", icon: FlaskConical },
   { href: "/dashboard/health-plan", label: "Health Plan", icon: Activity, disabled: true },
 ];

@@ -1,10 +1,21 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle } from "lucide-react";
+import { Send, Bot, User, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope, Shield, Heart, Pill, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getAuthToken } from "@/lib/auth";
-import { apiUrl, sendChatMessage, getChatHistory, startNewChat } from "@/lib/api";
+import {
+  apiUrl,
+  sendChatMessage,
+  getChatHistory,
+  startNewChat,
+  sendGuestChatMessage,
+  getGuestChatHistory,
+  startNewGuestChat,
+} from "@/lib/api";
+
+export type ChatMode = "guest" | "authenticated";
 
 export interface ChatMessage {
   id: string;
@@ -17,17 +28,108 @@ function formatTime(date: Date) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export function ChatUI() {
+// ── Guest Welcome Card ──────────────────────────────────────
+
+function GuestWelcomeCard({ onContinue }: { onContinue: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="mx-auto max-w-lg"
+    >
+      <div className="rounded-2xl border border-stone-200 bg-white p-6 sm:p-8 shadow-soft text-center">
+        <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-full bg-primary-100 text-primary-600 mb-4">
+          <BrainCircuit className="h-7 w-7" />
+        </div>
+        <h3 className="text-xl font-bold text-content-primary">Welcome to Med-AI</h3>
+        <p className="mt-2 text-sm text-content-secondary leading-relaxed">
+          Ask medical questions, understand symptoms, learn about diseases, medicines, and healthy living.
+        </p>
+        <div className="mt-5 rounded-xl bg-primary-50 border border-primary-100 p-4 text-left">
+          <p className="text-sm font-medium text-primary-800">🟢 You are currently using Guest Mode.</p>
+          <p className="mt-1.5 text-xs text-primary-700/80 leading-relaxed">
+            Responses are based only on what you share during this chat. Login to receive personalized medical guidance based on your health profile.
+          </p>
+        </div>
+        <Button
+          onClick={onContinue}
+          className="mt-6 h-11 w-full bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold"
+        >
+          Continue Chatting
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Login Upgrade Card ──────────────────────────────────────
+
+function LoginUpgradeCard() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.3, delay: 0.3 }}
+      className="ml-9 sm:ml-11 max-w-[88%] sm:max-w-[75%]"
+    >
+      <div className="rounded-xl border border-primary-100 bg-gradient-to-br from-primary-50 to-white p-4 shadow-sm">
+        <p className="text-sm font-medium text-primary-800">
+          Want more personalized medical guidance?
+        </p>
+        <p className="mt-1.5 text-xs text-primary-700/70 leading-relaxed">
+          Login to let Med-AI consider:
+        </p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {[
+            { icon: ClipboardList, label: "Medical History" },
+            { icon: Shield, label: "Allergies" },
+            { icon: Pill, label: "Current Medicines" },
+            { icon: Heart, label: "Chronic Diseases" },
+            { icon: FileText, label: "Medical Reports" },
+          ].map((item) => (
+            <span
+              key={item.label}
+              className="inline-flex items-center gap-1 rounded-full bg-white border border-primary-200 px-2.5 py-1 text-[11px] font-medium text-primary-700"
+            >
+              <item.icon className="h-3 w-3" />
+              {item.label}
+            </span>
+          ))}
+        </div>
+        <Link
+          to="/auth/login"
+          className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary-600 px-4 text-xs font-semibold text-white hover:bg-primary-700 transition-colors"
+        >
+          <LogIn className="h-3.5 w-3.5" />
+          Login Now
+        </Link>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Main ChatUI Component ───────────────────────────────────
+
+interface ChatUIProps {
+  mode?: ChatMode;
+}
+
+export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
+  const isGuest = mode === "guest";
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(!isGuest);
   const [inputError, setInputError] = useState<string | null>(null);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [extractedDocText, setExtractedDocText] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [showWelcome, setShowWelcome] = useState(isGuest);
+  const [showUpgradeAfter, setShowUpgradeAfter] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -36,8 +138,12 @@ export function ChatUI() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // Load chat history on mount
+  // Load chat history on mount (authenticated only)
   useEffect(() => {
+    if (isGuest) {
+      // Guest starts fresh — no history to load
+      return;
+    }
     async function loadHistory() {
       try {
         const data = await getChatHistory();
@@ -70,7 +176,7 @@ export function ChatUI() {
       }
     }
     loadHistory();
-  }, []);
+  }, [isGuest]);
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -123,7 +229,7 @@ export function ChatUI() {
     if (!trimmed || isLoading) return;
 
     let messageToSend = trimmed;
-    if (extractedDocText) {
+    if (!isGuest && extractedDocText) {
       messageToSend = `[Document Context: ${extractedDocText.substring(0, 2000)}]\n\nUser question: ${trimmed}`;
     }
 
@@ -134,14 +240,22 @@ export function ChatUI() {
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setIsLoading(true);
+    setShowUpgradeAfter(null);
 
     try {
-      const response = await sendChatMessage(messageToSend, sessionId);
+      const response = isGuest
+        ? await sendGuestChatMessage(messageToSend, sessionId)
+        : await sendChatMessage(messageToSend, sessionId);
       if (response.session_id) setSessionId(response.session_id);
+      const replyId = (Date.now() + 1).toString();
       setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(), role: "assistant",
+        id: replyId, role: "assistant",
         content: response.reply, timestamp: new Date(response.timestamp),
       }]);
+      // Show upgrade card after AI response in guest mode
+      if (isGuest) {
+        setShowUpgradeAfter(replyId);
+      }
     } catch (err: any) {
       const errorMessage = err.message?.includes("401") || err.message?.includes("authorized")
         ? "Session expired. Please log in again."
@@ -152,10 +266,9 @@ export function ChatUI() {
       }]);
     } finally {
       setIsLoading(false);
-      // Re-focus the input so the cursor stays in the text box
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [input, isLoading, sessionId, extractedDocText]);
+  }, [input, isLoading, sessionId, extractedDocText, isGuest]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -164,30 +277,56 @@ export function ChatUI() {
   const handleNewChat = async () => {
     if (isLoading) return;
     try {
-      const data = await startNewChat();
+      const data = isGuest ? await startNewGuestChat() : await startNewChat();
       setSessionId(data.session_id);
       setDocumentId(null);
       setFileName(null);
       setExtractedDocText(null);
-      setMessages([{
-        id: "welcome-new", role: "assistant",
-        content: "Fresh start! 👋 How can I help you today?\n\n⚕️ I'm an AI assistant, not a real doctor. Always check with a healthcare professional.",
-        timestamp: new Date(),
-      }]);
+      setShowUpgradeAfter(null);
+      if (isGuest) {
+        setShowWelcome(true);
+        setMessages([]);
+      } else {
+        setMessages([{
+          id: "welcome-new", role: "assistant",
+          content: "Fresh start! 👋 How can I help you today?\n\n⚕️ I'm an AI assistant, not a real doctor. Always check with a healthcare professional.",
+          timestamp: new Date(),
+        }]);
+      }
     } catch (err: any) {
       setInputError(err.message || "Failed to start new chat");
     }
   };
 
-  const quickPrompts = [
+  const guestQuickPrompts = [
+    "I have a headache.",
+    "Explain diabetes.",
+    "Is fever dangerous?",
+    "What causes chest pain?",
+    "How do antibiotics work?",
+  ];
+
+  const authQuickPrompts = [
     "I have a headache",
     "What are signs of flu?",
     "How to sleep better?",
   ];
 
+  const quickPrompts = isGuest ? guestQuickPrompts : authQuickPrompts;
+
   const handleQuickPrompt = (prompt: string) => {
     setInput(prompt);
     textareaRef.current?.focus();
+  };
+
+  const handleGuestContinue = () => {
+    setShowWelcome(false);
+    setMessages([{
+      id: "guest-welcome",
+      role: "assistant",
+      content: "Hi there! 👋 I'm Med-AI, your health assistant.\n\nAsk me about symptoms, diseases, medicines, or healthy living. I'll give you general medical guidance.\n\n⚕️ I'm an AI assistant, not a real doctor. Always check with a healthcare professional.",
+      timestamp: new Date(),
+    }]);
   };
 
   if (isLoadingHistory) {
@@ -196,6 +335,42 @@ export function ChatUI() {
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
           <p className="text-sm text-content-secondary">Loading chat...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Guest welcome screen
+  if (isGuest && showWelcome) {
+    return (
+      <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-stone-200 bg-surface shadow-card">
+        {/* Guest header */}
+        <div className="shrink-0 border-b border-stone-200 bg-surface px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10 sticky top-0 backdrop-blur-md bg-white/90">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-50 to-primary-100 text-primary-700 shadow-inner border border-primary-200">
+              <BrainCircuit className="h-5 w-5 sm:h-6 sm:w-6" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight flex items-center gap-2">
+                🟢 Guest Mode
+              </h3>
+              <p className="text-xs sm:text-sm font-medium text-content-secondary mt-0.5">
+                General Medical Guidance
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/auth/login"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary-50 px-3 sm:px-4 text-xs font-semibold text-primary-700 hover:bg-primary-100 transition-colors border border-primary-200"
+          >
+            <LogIn className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Login for Personalized AI</span>
+            <span className="sm:hidden">Login</span>
+          </Link>
+        </div>
+
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-6 bg-gray-50/50">
+          <GuestWelcomeCard onContinue={handleGuestContinue} />
         </div>
       </div>
     );
@@ -212,22 +387,50 @@ export function ChatUI() {
         <div className="flex items-center gap-3 sm:gap-4 relative z-10">
           <div className="relative flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-50 to-primary-100 text-primary-700 shadow-inner border border-primary-200" aria-hidden>
             <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 bg-primary-400/20 rounded-full blur-md" />
-            <BrainCircuit className="h-5 w-5 sm:h-6 sm:w-6 relative z-10" />
+            {isGuest ? (
+              <BrainCircuit className="h-5 w-5 sm:h-6 sm:w-6 relative z-10" />
+            ) : (
+              <BrainCircuit className="h-5 w-5 sm:h-6 sm:w-6 relative z-10" />
+            )}
           </div>
           <div>
-            <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight">AI Doctor</h3>
-            <p className="text-xs sm:text-sm font-medium flex items-center gap-1.5 mt-0.5 text-primary-600">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500" />
-              </span>
-              Online
-            </p>
+            {isGuest ? (
+              <>
+                <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight flex items-center gap-2">
+                  🟢 Guest Mode
+                </h3>
+                <p className="text-xs sm:text-sm font-medium text-content-secondary mt-0.5">
+                  General Medical Guidance
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight flex items-center gap-2">
+                  🩺 Personalized AI
+                </h3>
+                <p className="text-xs sm:text-sm font-medium flex items-center gap-1.5 mt-0.5 text-primary-600">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500" />
+                  </span>
+                  Using Your Health Profile
+                </p>
+              </>
+            )}
           </div>
         </div>
 
         <div className="flex items-center gap-2 relative z-10">
-          {fileName && (
+          {isGuest && (
+            <Link
+              to="/auth/login"
+              className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary-50 px-3 text-xs font-semibold text-primary-700 hover:bg-primary-100 transition-colors border border-primary-200"
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              Login for Personalized AI
+            </Link>
+          )}
+          {!isGuest && fileName && (
             <div className="hidden sm:flex items-center gap-2 bg-primary-50 px-3 py-1.5 rounded-full border border-primary-100">
               <FileText className="w-4 h-4 text-primary-600" />
               <span className="text-xs font-semibold text-primary-700 max-w-[120px] truncate">{fileName}</span>
@@ -262,27 +465,36 @@ export function ChatUI() {
               }
 
               return (
-                <motion.div key={msg.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-                  className={`flex gap-2.5 sm:gap-3 w-full ${isUser ? "justify-end" : "justify-start"}`}>
-                  {!isUser && (
-                    <div className="mt-1 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 shadow-sm border border-white" aria-hidden>
-                      <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+                <div key={msg.id}>
+                  <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+                    className={`flex gap-2.5 sm:gap-3 w-full ${isUser ? "justify-end" : "justify-start"}`}>
+                    {!isUser && (
+                      <div className="mt-1 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 shadow-sm border border-white" aria-hidden>
+                        <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+                      </div>
+                    )}
+                    <div className={cn("max-w-[88%] sm:max-w-[75%] px-4 sm:px-5 py-3 sm:py-3.5 text-sm sm:text-[15px] leading-relaxed shadow-sm",
+                      isUser ? "rounded-2xl rounded-tr-sm bg-primary-600 text-white" : "rounded-2xl rounded-tl-sm border border-stone-200 bg-white text-gray-800"
+                    )}>
+                      <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                      <p className={cn("mt-2 text-[10px] font-medium text-right", isUser ? "text-primary-200" : "text-gray-400")}>
+                        {formatTime(msg.timestamp)}
+                      </p>
+                    </div>
+                    {isUser && (
+                      <div className="mt-1 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 shadow-sm border border-white" aria-hidden>
+                        <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      </div>
+                    )}
+                  </motion.div>
+
+                  {/* Login upgrade card after the latest AI response in guest mode */}
+                  {isGuest && !isUser && msg.id === showUpgradeAfter && (
+                    <div className="mt-3">
+                      <LoginUpgradeCard />
                     </div>
                   )}
-                  <div className={cn("max-w-[88%] sm:max-w-[75%] px-4 sm:px-5 py-3 sm:py-3.5 text-sm sm:text-[15px] leading-relaxed shadow-sm",
-                    isUser ? "rounded-2xl rounded-tr-sm bg-primary-600 text-white" : "rounded-2xl rounded-tl-sm border border-stone-200 bg-white text-gray-800"
-                  )}>
-                    <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-                    <p className={cn("mt-2 text-[10px] font-medium text-right", isUser ? "text-primary-200" : "text-gray-400")}>
-                      {formatTime(msg.timestamp)}
-                    </p>
-                  </div>
-                  {isUser && (
-                    <div className="mt-1 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 shadow-sm border border-white" aria-hidden>
-                      <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                    </div>
-                  )}
-                </motion.div>
+                </div>
               );
             })}
           </AnimatePresence>
@@ -329,17 +541,24 @@ export function ChatUI() {
           )}
 
           <div className={`relative flex items-end gap-1.5 sm:gap-2 rounded-2xl border bg-white p-1.5 sm:p-2 shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-primary-500/50 ${inputError ? "border-red-300 ring-4 ring-red-50" : "border-gray-200 hover:border-gray-300"}`}>
-            <input type="file" ref={fileInputRef} className="hidden" accept="application/pdf" onChange={handleUpload} />
-
-            <Button type="button" variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading || isUploading} title="Attach Medical Report (PDF)"
-              className={`h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-xl mb-0.5 sm:mb-1 ml-0.5 sm:ml-1 text-gray-500 hover:bg-gray-100 hover:text-primary-600 transition-colors ${isUploading ? "animate-pulse bg-gray-100" : ""}`}>
-              <Paperclip className="h-4 w-4 sm:h-5 sm:w-5" />
-            </Button>
+            {/* File upload — authenticated only */}
+            {!isGuest && (
+              <>
+                <input type="file" ref={fileInputRef} className="hidden" accept="application/pdf" onChange={handleUpload} />
+                <Button type="button" variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading || isUploading} title="Attach Medical Report (PDF)"
+                  className={`h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-xl mb-0.5 sm:mb-1 ml-0.5 sm:ml-1 text-gray-500 hover:bg-gray-100 hover:text-primary-600 transition-colors ${isUploading ? "animate-pulse bg-gray-100" : ""}`}>
+                  <Paperclip className="h-4 w-4 sm:h-5 sm:w-5" />
+                </Button>
+              </>
+            )}
 
             <textarea ref={textareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
-              placeholder="Describe your symptoms or ask a health question..."
-              className="max-h-[120px] min-h-[40px] sm:min-h-[44px] w-full resize-none bg-transparent py-2.5 sm:py-3 text-sm sm:text-[15px] outline-none placeholder:text-gray-400 disabled:opacity-50"
+              placeholder={isGuest ? "Ask a health question..." : "Describe your symptoms or ask a health question..."}
+              className={cn(
+                "max-h-[120px] min-h-[40px] sm:min-h-[44px] w-full resize-none bg-transparent py-2.5 sm:py-3 text-sm sm:text-[15px] outline-none placeholder:text-gray-400 disabled:opacity-50",
+                isGuest && "ml-3"
+              )}
               disabled={isLoading || isUploading} aria-invalid={!!inputError} rows={1} />
 
             <Button type="button" onClick={handleSend} disabled={!input.trim() || isLoading || isUploading} aria-label="Send message"

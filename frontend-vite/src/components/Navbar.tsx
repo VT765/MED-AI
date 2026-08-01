@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu } from "lucide-react";
+import { Menu, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
 import { getCurrentUser, type User } from "@/lib/auth";
@@ -34,6 +34,13 @@ export function Navbar() {
           ) : (
             <>
               <Link
+                to="/chat"
+                className="rounded-button inline-flex h-10 items-center justify-center gap-2 bg-primary-500 px-5 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-600 active:scale-[0.98]"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Start Chatting
+              </Link>
+              <Link
                 to="/auth/login"
                 className="rounded-button inline-flex h-10 items-center justify-center px-5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content-primary"
               >
@@ -41,9 +48,9 @@ export function Navbar() {
               </Link>
               <Link
                 to="/auth/signup"
-                className="rounded-button inline-flex h-10 items-center justify-center bg-primary-500 px-5 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-600 active:scale-[0.98]"
+                className="rounded-button inline-flex h-10 items-center justify-center border border-stone-300 bg-white px-5 text-sm font-semibold text-content-primary shadow-soft transition-all hover:bg-surface-muted active:scale-[0.98]"
               >
-                Get started
+                Sign up
               </Link>
             </>
           )}
@@ -76,11 +83,15 @@ export function Navbar() {
                 </Link>
               ) : (
                 <>
+                  <Link to="/chat" className="rounded-button flex items-center gap-2 bg-primary-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-primary-600" onClick={() => setMobileOpen(false)}>
+                    <MessageCircle className="h-4 w-4" />
+                    Start Chatting
+                  </Link>
                   <Link to="/auth/login" className="rounded-button px-4 py-3 text-sm font-medium text-content-primary hover:bg-surface-muted" onClick={() => setMobileOpen(false)}>
                     Log in
                   </Link>
-                  <Link to="/auth/signup" className="rounded-button mt-2 bg-primary-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-primary-600" onClick={() => setMobileOpen(false)}>
-                    Get started
+                  <Link to="/auth/signup" className="rounded-button mt-1 border border-stone-300 bg-white px-4 py-3 text-center text-sm font-semibold text-content-primary hover:bg-surface-muted" onClick={() => setMobileOpen(false)}>
+                    Sign up
                   </Link>
                 </>
               )}

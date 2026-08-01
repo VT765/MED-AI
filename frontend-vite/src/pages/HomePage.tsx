@@ -5,7 +5,6 @@ import {
   MessageCircle,
   FileText,
   Stethoscope,
-  Ambulance,
   Shield,
   Lock,
   CheckCircle2,
@@ -24,7 +23,7 @@ const whatIsMedAI = [
   { icon: MessageCircle, title: "AI Doctor Consultation", description: "Get instant, 24/7 AI-powered health guidance. Describe your symptoms and receive preliminary insights before consulting with certified doctors. Our AI assistant helps you understand your health concerns and guides you on next steps." },
   { icon: FileText, title: "Medical Report Analysis", description: "Upload your medical reports, lab results, or imaging scans and receive comprehensive AI-powered analysis. Get detailed summaries, key observations, and suggested next steps to help you understand your health data better." },
   { icon: Stethoscope, title: "Certified Doctor Consultations", description: "Connect with verified, certified doctors from around the world. Book video or in-person consultations at affordable rates. Access specialists in cardiology, dermatology, pediatrics, oncology, and more." },
-  { icon: Ambulance, title: "Inter-City Patient Transport", description: "Book ambulance services for safe, professional patient transport between cities. Perfect for medical transfers, hospital discharges, or scheduled medical appointments requiring specialized transport." },
+
   { icon: FlaskConical, title: "At-Home Lab Tests", description: "Schedule lab tests from the comfort of your home. Our certified technicians visit your location to collect samples, making healthcare more convenient and accessible." },
   { icon: Brain, title: "Personalized Health Plans", description: "Receive AI-generated fitness and diet plans tailored to your health profile, medical history, and wellness goals. Coming soon with advanced personalization features." },
 ];
@@ -71,14 +70,24 @@ export function HomePage() {
             <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.16 }} className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-content-secondary">
               Chat with an AI doctor, analyze medical reports, and consult certified doctors globally at minimal cost — all in one place.
             </motion.p>
-            {mounted && user && (
+            {mounted && user ? (
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.24 }} className="mt-10">
                 <Link to="/dashboard" className="inline-flex h-12 items-center justify-center gap-2 rounded-button bg-primary-500 px-8 text-base font-semibold text-white shadow-card transition-all hover:bg-primary-600 hover:shadow-cardHover active:scale-[0.98]">
                   Go to Dashboard
                   <ArrowRight className="h-5 w-5" aria-hidden />
                 </Link>
               </motion.div>
-            )}
+            ) : mounted ? (
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.24 }} className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+                <Link to="/chat" className="inline-flex h-12 items-center justify-center gap-2 rounded-button bg-primary-500 px-8 text-base font-semibold text-white shadow-card transition-all hover:bg-primary-600 hover:shadow-cardHover active:scale-[0.98]">
+                  <MessageCircle className="h-5 w-5" aria-hidden />
+                  Start Chatting
+                </Link>
+                <Link to="/auth/login" className="inline-flex h-12 items-center justify-center gap-2 rounded-button border border-stone-300 bg-white px-8 text-base font-semibold text-content-primary shadow-soft transition-all hover:bg-surface-muted hover:shadow-cardHover active:scale-[0.98]">
+                  Login / Sign Up
+                </Link>
+              </motion.div>
+            ) : null}
           </div>
         </section>
 

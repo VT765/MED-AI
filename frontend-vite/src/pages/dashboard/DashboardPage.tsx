@@ -5,7 +5,6 @@ import {
   MessageCircle,
   FileText,
   Calendar,
-  Ambulance,
   Activity,
   FlaskConical,
   ArrowRight,
@@ -19,7 +18,7 @@ const modules = [
   { href: "/dashboard/chat", title: "Chat with AI Doctor", description: "Describe symptoms and get initial guidance. Not a replacement for certified doctors.", icon: MessageCircle, color: "bg-primary-100 text-primary-600" },
   { href: "/dashboard/reports", title: "Scan Medical Reports", description: "Upload reports (camera or file) and get AI-powered analysis.", icon: FileText, color: "bg-green-100 text-green-700" },
   { href: "/dashboard/appointment", title: "Book Doctor Appointment", description: "Choose a certified doctor, pick date & time, minimal consultation fee.", icon: Calendar, color: "bg-blue-100 text-blue-700" },
-  { href: "/dashboard/emergency", title: "Inter-City Patient Transport", description: "Book ambulance services for safe patient transport between cities.", icon: Ambulance, color: "bg-red-100 text-red-700" },
+
   { href: "/dashboard/lab-tests", title: "Book Lab Test at Home", description: "Select test, address, and time slot. Mock location supported.", icon: FlaskConical, color: "bg-purple-100 text-purple-700" },
   { href: "/dashboard/health-plan", title: "Personalized Healthcare Plan", description: "AI fitness & diet plans tailored to you.", icon: Activity, color: "bg-amber-100 text-amber-700", disabled: true, badge: "Coming Soon", tooltip: "Personalized AI fitness and diet plans based on your health profile. Coming soon." },
 ];

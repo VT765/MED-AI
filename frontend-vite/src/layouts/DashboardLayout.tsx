@@ -5,7 +5,6 @@ import {
   MessageCircle,
   FileText,
   Calendar,
-  Ambulance,
   Activity,
   FlaskConical,
   User,
@@ -30,7 +29,7 @@ const careNav = [
   { href: "/dashboard/chat", label: "AI Doctor", icon: MessageCircle },
   { href: "/dashboard/reports", label: "Medical Reports", icon: FileText },
   { href: "/dashboard/appointment", label: "Book Doctor", icon: Calendar },
-  { href: "/dashboard/emergency", label: "Emergency", icon: Ambulance },
+
   { href: "/dashboard/lab-tests", label: "Lab Tests", icon: FlaskConical },
   { href: "/dashboard/health-plan", label: "Health Plan", icon: Activity, disabled: true },
 ];
@@ -52,7 +51,7 @@ export function DashboardLayout() {
     if (pathname === "/dashboard/chat") return "AI Doctor";
     if (pathname === "/dashboard/reports") return "Medical Reports";
     if (pathname === "/dashboard/appointment") return "Book Doctor";
-    if (pathname === "/dashboard/emergency") return "Emergency";
+
     if (pathname === "/dashboard/lab-tests") return "Lab Tests";
     if (pathname === "/dashboard/health-plan") return "Health Plan";
     if (pathname === "/dashboard/profile") return "My Profile";
