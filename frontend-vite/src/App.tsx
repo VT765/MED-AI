@@ -7,6 +7,7 @@ import { TermsPage } from "@/pages/TermsPage";
 import { PrivacyPage } from "@/pages/PrivacyPage";
 import { LoginPage } from "@/pages/auth/LoginPage";
 import { SignupPage } from "@/pages/auth/SignupPage";
+import { OnboardingPage } from "@/pages/onboarding/OnboardingPage";
 import { GuestChatPage } from "@/pages/GuestChatPage";
 import { DashboardPage } from "@/pages/dashboard/DashboardPage";
 import { ChatPage } from "@/pages/dashboard/ChatPage";
@@ -31,6 +32,7 @@ function App() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/auth/login" element={<LoginPage />} />
       <Route path="/auth/signup" element={<SignupPage />} />
+      <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/chat" element={<GuestChatPage />} />
 
       {/* Redirects for removed routes */}

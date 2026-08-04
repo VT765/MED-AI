@@ -42,15 +42,9 @@ export function Navbar() {
               </Link>
               <Link
                 to="/auth/login"
-                className="rounded-button inline-flex h-10 items-center justify-center px-5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content-primary"
-              >
-                Log in
-              </Link>
-              <Link
-                to="/auth/signup"
                 className="rounded-button inline-flex h-10 items-center justify-center border border-stone-300 bg-white px-5 text-sm font-semibold text-content-primary shadow-soft transition-all hover:bg-surface-muted active:scale-[0.98]"
               >
-                Sign up
+                Login / Sign Up
               </Link>
             </>
           )}
@@ -87,11 +81,8 @@ export function Navbar() {
                     <MessageCircle className="h-4 w-4" />
                     Start Chatting
                   </Link>
-                  <Link to="/auth/login" className="rounded-button px-4 py-3 text-sm font-medium text-content-primary hover:bg-surface-muted" onClick={() => setMobileOpen(false)}>
-                    Log in
-                  </Link>
-                  <Link to="/auth/signup" className="rounded-button mt-1 border border-stone-300 bg-white px-4 py-3 text-center text-sm font-semibold text-content-primary hover:bg-surface-muted" onClick={() => setMobileOpen(false)}>
-                    Sign up
+                  <Link to="/auth/login" className="rounded-button mt-1 border border-stone-300 bg-white px-4 py-3 text-center text-sm font-semibold text-content-primary hover:bg-surface-muted" onClick={() => setMobileOpen(false)}>
+                    Login / Sign Up
                   </Link>
                 </>
               )}

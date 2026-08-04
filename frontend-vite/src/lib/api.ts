@@ -153,3 +153,99 @@ export async function startNewGuestChat(): Promise<{ session_id: string }> {
 
   return data;
 }
+
+// ── Chat Sessions List (all past sessions) ──────────────────
+
+export interface ChatSessionSummary {
+  session_id: string;
+  title: string;
+  active: boolean;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getChatSessions(): Promise<{ sessions: ChatSessionSummary[] }> {
+  const res = await fetch(apiUrl("/api/chat/sessions"), {
+    headers: authHeaders(),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || data.message || "Failed to load chat sessions");
+  }
+
+  return data;
+}
+
+export async function getSessionHistory(sessionId: string): Promise<ChatHistoryResponse> {
+  const res = await fetch(apiUrl(`/api/chat/sessions/${encodeURIComponent(sessionId)}`), {
+    headers: authHeaders(),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || data.message || "Failed to load session history");
+  }
+
+  return data as ChatHistoryResponse;
+}
+
+export async function deleteChatSession(sessionId: string): Promise<void> {
+  const res = await fetch(apiUrl(`/api/chat/sessions/${encodeURIComponent(sessionId)}`), {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.detail || data.message || "Failed to delete session");
+  }
+}
+
+// ── Report History (all past reports) ───────────────────────
+
+export interface ReportSummary {
+  report_id: string;
+  filename: string;
+  status: string;
+  created_at: string;
+}
+
+export interface ReportDetail {
+  report_id: string;
+  filename: string;
+  status: string;
+  analysis: any;
+  created_at: string;
+}
+
+export async function getReportHistory(): Promise<{ reports: ReportSummary[] }> {
+  const res = await fetch(apiUrl("/api/reports/history"), {
+    headers: authHeaders(),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || data.message || "Failed to load report history");
+  }
+
+  return data;
+}
+
+export async function getReportById(reportId: string): Promise<ReportDetail> {
+  const res = await fetch(apiUrl(`/api/reports/history/${encodeURIComponent(reportId)}`), {
+    headers: authHeaders(),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || data.message || "Failed to load report");
+  }
+
+  return data;
+}

@@ -4,15 +4,11 @@ import {
   LayoutDashboard,
   MessageCircle,
   FileText,
-  Calendar,
-  Activity,
-  FlaskConical,
   User,
   Settings,
   HelpCircle,
   LogOut,
   ChevronDown,
-  Home,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
@@ -21,17 +17,12 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
 
 const primaryNav = [
-  { href: "/", label: "Home", icon: Home },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
 ];
 
 const careNav = [
   { href: "/dashboard/chat", label: "AI Doctor", icon: MessageCircle },
   { href: "/dashboard/reports", label: "Medical Reports", icon: FileText },
-  { href: "/dashboard/appointment", label: "Book Doctor", icon: Calendar },
-
-  { href: "/dashboard/lab-tests", label: "Lab Tests", icon: FlaskConical },
-  { href: "/dashboard/health-plan", label: "Health Plan", icon: Activity, disabled: true },
 ];
 
 export function DashboardLayout() {
@@ -136,15 +127,7 @@ export function DashboardLayout() {
                 className="absolute bottom-full left-1/2 z-50 mb-2 w-52 -translate-x-1/2 rounded-card border border-stone-200 bg-surface-elevated py-1 shadow-cardHover">
                 {careNav.map((item) => {
                   const Icon = item.icon;
-                  const isDisabled = item.disabled;
                   const isActive = pathname === item.href;
-                  if (isDisabled) {
-                    return (
-                      <div key={item.href} role="menuitem" aria-disabled="true" className="flex items-center gap-2 px-3 py-2 text-xs text-content-tertiary">
-                        <Icon className="h-4 w-4" aria-hidden /><span>{item.label}</span>
-                      </div>
-                    );
-                  }
                   return (
                     <Link key={item.href} to={item.href} role="menuitem"
                       className={cn("flex items-center gap-2 px-3 py-2 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset",

@@ -52,7 +52,7 @@ export function SignupPage() {
         email: data.email,
         password: data.password,
       });
-      navigate("/dashboard");
+      navigate("/onboarding");
     } catch (err: any) {
       console.error("Signup error:", err);
       setError(err.message || "Signup failed. Please try again.");
