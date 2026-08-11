@@ -92,7 +92,12 @@ export function DashboardLayout() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface lg:flex-row">
+    <div className={cn(
+      "flex bg-surface lg:flex-row",
+      pathname === "/dashboard/chat" || pathname === "/dashboard/reports"
+        ? "h-[100dvh] max-h-[100dvh] overflow-hidden"
+        : "min-h-screen"
+    )}>
       <Sidebar />
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-stone-200 bg-surface-elevated px-2 py-2 lg:hidden" aria-label="Mobile navigation">
@@ -144,8 +149,8 @@ export function DashboardLayout() {
         </div>
       </nav>
 
-      <div className="flex flex-1 flex-col lg:ml-0">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-stone-200 bg-surface-elevated px-4 lg:px-8">
+      <div className="flex flex-1 flex-col min-h-0 h-full overflow-hidden lg:ml-0">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-stone-200 bg-surface-elevated px-4 lg:px-8 shrink-0">
           <div className="flex items-center gap-2">
             <Logo size={28} className="h-7 w-7" />
             <h1 className="text-lg font-bold tracking-tight text-content-primary lg:text-xl">{getPageTitle()}</h1>
@@ -184,8 +189,8 @@ export function DashboardLayout() {
         <main className={cn(
           "flex-1 flex flex-col min-h-0",
           pathname === "/dashboard/reports" || pathname === "/dashboard/chat"
-            ? "p-0 overflow-hidden"
-            : "p-4 pb-24 lg:p-8 lg:pb-8 lg:mx-auto lg:max-w-6xl lg:w-full"
+            ? "p-0 pb-16 lg:pb-0 overflow-hidden"
+            : "p-4 pb-24 lg:p-8 lg:pb-8 lg:mx-auto lg:max-w-6xl lg:w-full overflow-y-auto"
         )}>
           <Outlet />
         </main>

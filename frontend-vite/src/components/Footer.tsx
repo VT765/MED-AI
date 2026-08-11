@@ -3,13 +3,14 @@ import { Logo } from "@/components/Logo";
 
 const footerLinks = {
   product: [
-    { label: "AI Doctor", href: "/dashboard/chat" },
-    { label: "Medical Reports", href: "/dashboard/reports" },
-    { label: "Book Doctor", href: "/dashboard/appointment" },
+    { label: "AI Chat", href: "/dashboard/chat" },
+    { label: "Medical Report Analysis", href: "/dashboard/reports" },
+    { label: "Medical History", href: "/dashboard/profile" },
   ],
   company: [
     { label: "About MedAI", href: "/about" },
     { label: "Contact", href: "/contact" },
+    { label: "Careers", href: "/careers" },
   ],
   legal: [
     { label: "Terms & Conditions", href: "/terms" },
@@ -30,6 +31,11 @@ export function Footer() {
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-content-secondary">
               Your AI-powered health assistant — anytime, anywhere.
             </p>
+            <div className="mt-6">
+              <Link to="/auth/signup" className="inline-flex h-9 items-center justify-center rounded-button border border-stone-300 bg-white px-4 text-sm font-medium text-content-primary shadow-sm transition-colors hover:bg-surface-muted">
+                Create Account
+              </Link>
+            </div>
           </div>
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-content-tertiary">Product</h3>

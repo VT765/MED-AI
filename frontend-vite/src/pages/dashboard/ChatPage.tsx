@@ -190,11 +190,11 @@ export function ChatPage() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="flex-1 w-full max-w-5xl mx-auto p-4 flex flex-col min-h-0">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="shrink-0 mb-3 sm:mb-4 px-2 sm:hidden">
+      <div className="flex-1 w-full max-w-5xl mx-auto p-2 sm:p-4 flex flex-col min-h-0 overflow-hidden">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="shrink-0 mb-2 sm:mb-3 px-2 sm:hidden">
           <h2 className="text-xl font-bold text-content-primary">Chat with AI Doctor</h2>
         </motion.div>
-        <div className="flex-1 w-full relative min-h-0">
+        <div className="flex-1 w-full relative min-h-0 overflow-hidden">
           <ChatUI />
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope, Shield, Heart, Pill, ClipboardList } from "lucide-react";
+import { Send, Bot, User, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getAuthToken } from "@/lib/auth";
@@ -11,7 +11,6 @@ import {
   getChatHistory,
   startNewChat,
   sendGuestChatMessage,
-  getGuestChatHistory,
   startNewGuestChat,
 } from "@/lib/api";
 
@@ -40,70 +39,41 @@ function GuestWelcomeCard({ onContinue }: { onContinue: () => void }) {
     >
       <div className="rounded-2xl border border-stone-200 bg-white p-6 sm:p-8 shadow-soft text-center">
         <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-full bg-primary-100 text-primary-600 mb-4">
-          <BrainCircuit className="h-7 w-7" />
+          <Stethoscope className="h-7 w-7" />
         </div>
-        <h3 className="text-xl font-bold text-content-primary">Welcome to Med-AI</h3>
+        <h3 className="text-xl font-bold text-content-primary">General Health Assistant</h3>
         <p className="mt-2 text-sm text-content-secondary leading-relaxed">
-          Ask medical questions, understand symptoms, learn about diseases, medicines, and healthy living.
+          Ask any common health question and get general medical information instantly — no sign-up, no data stored.
         </p>
         <div className="mt-5 rounded-xl bg-primary-50 border border-primary-100 p-4 text-left">
-          <p className="text-sm font-medium text-primary-800">🟢 You are currently using Guest Mode.</p>
-          <p className="mt-1.5 text-xs text-primary-700/80 leading-relaxed">
-            Responses are based only on what you share during this chat. Login to receive personalized medical guidance based on your health profile.
-          </p>
+          <p className="text-sm font-medium text-primary-800">💬 How this works</p>
+          <ul className="mt-2 space-y-1.5 text-xs text-primary-700/80 leading-relaxed">
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0">1.</span>
+              <span>Ask a general health or medical question</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0">2.</span>
+              <span>Get common, evidence-based information back</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0">3.</span>
+              <span>No personal data is collected or stored</span>
+            </li>
+          </ul>
+        </div>
+        <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-left">
+          <p className="text-[11px] text-amber-700 font-medium">⚠️ Guest Mode provides general information only. For personalized medical advice, log in to unlock the full AI Doctor experience.</p>
         </div>
         <Button
           onClick={onContinue}
-          className="mt-6 h-11 w-full bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold"
+          className="mt-4 h-11 w-full bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold"
         >
-          Continue Chatting
+          Ask a Question
         </Button>
-      </div>
-    </motion.div>
-  );
-}
-
-// ── Login Upgrade Card ──────────────────────────────────────
-
-function LoginUpgradeCard() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.3, delay: 0.3 }}
-      className="ml-9 sm:ml-11 max-w-[88%] sm:max-w-[75%]"
-    >
-      <div className="rounded-xl border border-primary-100 bg-gradient-to-br from-primary-50 to-white p-4 shadow-sm">
-        <p className="text-sm font-medium text-primary-800">
-          Want more personalized medical guidance?
+        <p className="mt-3 text-[11px] text-content-tertiary">
+          No sign-up needed · No data stored · General info only
         </p>
-        <p className="mt-1.5 text-xs text-primary-700/70 leading-relaxed">
-          Login to let Med-AI consider:
-        </p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {[
-            { icon: ClipboardList, label: "Medical History" },
-            { icon: Shield, label: "Allergies" },
-            { icon: Pill, label: "Current Medicines" },
-            { icon: Heart, label: "Chronic Diseases" },
-            { icon: FileText, label: "Medical Reports" },
-          ].map((item) => (
-            <span
-              key={item.label}
-              className="inline-flex items-center gap-1 rounded-full bg-white border border-primary-200 px-2.5 py-1 text-[11px] font-medium text-primary-700"
-            >
-              <item.icon className="h-3 w-3" />
-              {item.label}
-            </span>
-          ))}
-        </div>
-        <Link
-          to="/auth/login"
-          className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary-600 px-4 text-xs font-semibold text-white hover:bg-primary-700 transition-colors"
-        >
-          <LogIn className="h-3.5 w-3.5" />
-          Login Now
-        </Link>
       </div>
     </motion.div>
   );
@@ -129,13 +99,18 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
   const [extractedDocText, setExtractedDocText] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(isGuest);
-  const [showUpgradeAfter, setShowUpgradeAfter] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [messages, isLoading]);
 
   // Load chat history on mount (authenticated only)
@@ -240,7 +215,6 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setIsLoading(true);
-    setShowUpgradeAfter(null);
 
     try {
       const response = isGuest
@@ -252,10 +226,6 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
         id: replyId, role: "assistant",
         content: response.reply, timestamp: new Date(response.timestamp),
       }]);
-      // Show upgrade card after AI response in guest mode
-      if (isGuest) {
-        setShowUpgradeAfter(replyId);
-      }
     } catch (err: any) {
       const errorMessage = err.message?.includes("401") || err.message?.includes("authorized")
         ? "Session expired. Please log in again."
@@ -282,7 +252,6 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
       setDocumentId(null);
       setFileName(null);
       setExtractedDocText(null);
-      setShowUpgradeAfter(null);
       if (isGuest) {
         setShowWelcome(true);
         setMessages([]);
@@ -298,21 +267,36 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
     }
   };
 
-  const guestQuickPrompts = [
-    "I have a headache.",
-    "Explain diabetes.",
-    "Is fever dangerous?",
-    "What causes chest pain?",
-    "How do antibiotics work?",
+  // Pool of realistic quick prompts — randomized each session for freshness
+  const allGuestPrompts = [
+    "What are common causes of headaches?",
+    "How can I improve my sleep quality?",
+    "What helps with a sore throat?",
+    "What are signs of dehydration?",
+    "How to relieve back pain naturally?",
+    "What causes frequent fatigue?",
+    "When should I see a doctor for a cough?",
+    "What are common cold vs flu differences?",
+    "How to manage stress and anxiety?",
+    "What foods help with digestion?",
+    "How much water should I drink daily?",
+    "What causes muscle cramps?",
   ];
 
-  const authQuickPrompts = [
+  const allAuthPrompts = [
     "I have a headache",
     "What are signs of flu?",
     "How to sleep better?",
   ];
 
-  const quickPrompts = isGuest ? guestQuickPrompts : authQuickPrompts;
+  // Pick 5 random prompts for guests, 3 for auth — stable per component mount
+  const [quickPrompts] = useState(() => {
+    if (isGuest) {
+      const shuffled = [...allGuestPrompts].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, 5);
+    }
+    return allAuthPrompts;
+  });
 
   const handleQuickPrompt = (prompt: string) => {
     setInput(prompt);
@@ -324,7 +308,7 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
     setMessages([{
       id: "guest-welcome",
       role: "assistant",
-      content: "Hi there! 👋 I'm Med-AI, your health assistant.\n\nAsk me about symptoms, diseases, medicines, or healthy living. I'll give you general medical guidance.\n\n⚕️ I'm an AI assistant, not a real doctor. Always check with a healthcare professional.",
+      content: `👋 Welcome to Med-AI Guest Mode!\n\nI can help with general health questions and provide common medical information. Each question is treated independently — no conversation history or personal data is stored.\n\nAsk me anything about common symptoms, general wellness, or health topics!\n\n⚕️ For personalized advice, consider logging in.`,
       timestamp: new Date(),
     }]);
   };
@@ -445,7 +429,7 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto bg-gray-50/50 p-4 sm:p-6 scroll-smooth">
+      <div ref={chatContainerRef} className="flex-1 min-h-0 overflow-y-auto bg-gray-50/50 p-4 sm:p-6 scroll-smooth">
         <div className="mx-auto flex max-w-3xl flex-col gap-5 sm:gap-6">
           <AnimatePresence initial={false}>
             {messages.map((msg) => {
@@ -487,13 +471,6 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
                       </div>
                     )}
                   </motion.div>
-
-                  {/* Login upgrade card after the latest AI response in guest mode */}
-                  {isGuest && !isUser && msg.id === showUpgradeAfter && (
-                    <div className="mt-3">
-                      <LoginUpgradeCard />
-                    </div>
-                  )}
                 </div>
               );
             })}
