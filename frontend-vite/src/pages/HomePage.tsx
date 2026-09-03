@@ -15,7 +15,8 @@ import {
   Brain,
   UploadCloud,
   FileSearch,
-  Database
+  Database,
+  Compass
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -134,33 +135,49 @@ export function HomePage() {
                 Empowering you with AI-driven tools to better understand your health, symptoms, and medical data.
               </p>
             </motion.div>
-            <div className="mt-14 grid gap-8 md:grid-cols-3">
-              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="group rounded-card border border-stone-200 bg-surface-elevated p-8 shadow-soft transition-all hover:border-primary-200 hover:shadow-cardHover">
+            <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="group rounded-card border border-stone-200 bg-surface-elevated p-6 shadow-soft transition-all hover:border-primary-200 hover:shadow-cardHover">
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100 text-primary-600 transition-colors group-hover:bg-primary-200">
                   <MessageCircle className="h-6 w-6" aria-hidden />
                 </span>
-                <h3 className="mt-6 text-xl font-semibold text-content-primary">AI Medical Chat</h3>
-                <p className="mt-3 leading-relaxed text-content-secondary/90">
+                <h3 className="mt-6 text-lg font-semibold text-content-primary">AI Medical Chat</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-content-secondary/90">
                   Ask questions, describe symptoms, and interact naturally with Med-AI to receive immediate, intelligent health guidance at any time of day.
                 </p>
               </motion.div>
-              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="group rounded-card border border-stone-200 bg-surface-elevated p-8 shadow-soft transition-all hover:border-primary-200 hover:shadow-cardHover">
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="group rounded-card border border-stone-200 bg-surface-elevated p-6 shadow-soft transition-all hover:border-primary-200 hover:shadow-cardHover">
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100 text-primary-600 transition-colors group-hover:bg-primary-200">
                   <Database className="h-6 w-6" aria-hidden />
                 </span>
-                <h3 className="mt-6 text-xl font-semibold text-content-primary">Medical History</h3>
-                <p className="mt-3 leading-relaxed text-content-secondary/90">
+                <h3 className="mt-6 text-lg font-semibold text-content-primary">Medical History</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-content-secondary/90">
                   Maintain relevant medical information securely so Med-AI can provide far more contextual, accurate, and personalized responses to your inquiries.
                 </p>
               </motion.div>
-              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="group rounded-card border border-stone-200 bg-surface-elevated p-8 shadow-soft transition-all hover:border-primary-200 hover:shadow-cardHover">
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="group rounded-card border border-stone-200 bg-surface-elevated p-6 shadow-soft transition-all hover:border-primary-200 hover:shadow-cardHover">
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100 text-primary-600 transition-colors group-hover:bg-primary-200">
                   <FileText className="h-6 w-6" aria-hidden />
                 </span>
-                <h3 className="mt-6 text-xl font-semibold text-content-primary">Medical Report Analysis</h3>
-                <p className="mt-3 leading-relaxed text-content-secondary/90">
+                <h3 className="mt-6 text-lg font-semibold text-content-primary">Report Analysis</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-content-secondary/90">
                   Upload reports and receive simple, AI-generated explanations of important findings, complex medical terminology, and key metrics.
                 </p>
+              </motion.div>
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="group rounded-card border border-rose-200 bg-surface-elevated p-6 shadow-soft transition-all hover:border-rose-400 hover:shadow-cardHover relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-rose-100 text-rose-600 transition-colors group-hover:bg-rose-200">
+                    <Compass className="h-6 w-6" aria-hidden />
+                  </span>
+                  <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">Interactive 3D</span>
+                </div>
+                <h3 className="mt-6 text-lg font-semibold text-content-primary flex items-center justify-between">
+                  <span>3D Body Atlas</span>
+                  <ArrowRight className="h-4 w-4 text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-content-secondary/90">
+                  Explore 3D interactive organs, biological systems, anatomical layers, and guided medical lessons.
+                </p>
+                <Link to={user ? "/dashboard/anatomy" : "/auth/login"} className="absolute inset-0 z-10" aria-label="Open 3D Body Atlas" />
               </motion.div>
             </div>
           </div>

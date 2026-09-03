@@ -7,6 +7,7 @@ import {
   Clock,
   Activity,
   Calendar,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
@@ -20,6 +21,7 @@ const primaryItems = [
 const careItems = [
   { href: "/dashboard/chat", label: "AI Doctor", icon: MessageCircle },
   { href: "/dashboard/reports", label: "Medical Reports", icon: FileText },
+  { href: "/dashboard/anatomy", label: "Body Atlas 3D", icon: Compass },
 ];
 
 export function Sidebar() {

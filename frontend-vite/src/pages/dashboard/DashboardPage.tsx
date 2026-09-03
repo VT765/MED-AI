@@ -13,6 +13,7 @@ import {
   Brain,
   Loader2,
   Calendar,
+  Compass,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', mo
 const quickActions = [
   { href: "/dashboard/chat", title: "Chat with AI Doctor", description: "Describe symptoms and get initial guidance.", icon: MessageCircle, color: "bg-primary-100 text-primary-600" },
   { href: "/dashboard/reports", title: "Scan Medical Reports", description: "Upload reports and get AI-powered analysis.", icon: FileText, color: "bg-green-100 text-green-700" },
+  { href: "/dashboard/anatomy", title: "3D Body Atlas", description: "Explore interactive 3D human anatomy & organ systems.", icon: Compass, color: "bg-rose-100 text-rose-600" },
 ];
 
 function calcHealthScore(profile: ProfileResponse | null, reportCount: number, chatCount: number): number {

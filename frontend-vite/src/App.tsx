@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { AnatomyPage } from "@/pages/anatomy/AnatomyPage";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { HomePage } from "@/pages/HomePage";
 import { AboutPage } from "@/pages/AboutPage";
@@ -34,6 +35,7 @@ function App() {
       <Route path="/auth/signup" element={<SignupPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/chat" element={<GuestChatPage />} />
+      <Route path="/anatomy" element={<Navigate to="/dashboard/anatomy" replace />} />
 
       {/* Redirects for removed routes */}
       <Route path="/auth/verify-phone" element={<Navigate to="/auth/login" replace />} />
@@ -44,6 +46,7 @@ function App() {
         <Route index element={<DashboardPage />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="anatomy" element={<AnatomyPage />} />
         <Route path="appointment" element={<AppointmentPage />} />
         <Route path="appointment/doctors/:id" element={<AppointmentDoctorPage />} />
         <Route path="appointment/doctors/:id/book" element={<AppointmentBookPage />} />

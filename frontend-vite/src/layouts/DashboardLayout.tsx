@@ -9,6 +9,7 @@ import {
   HelpCircle,
   LogOut,
   ChevronDown,
+  Compass,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
@@ -23,6 +24,7 @@ const primaryNav = [
 const careNav = [
   { href: "/dashboard/chat", label: "AI Doctor", icon: MessageCircle },
   { href: "/dashboard/reports", label: "Medical Reports", icon: FileText },
+  { href: "/dashboard/anatomy", label: "Body Atlas 3D", icon: Compass },
 ];
 
 export function DashboardLayout() {
@@ -41,6 +43,7 @@ export function DashboardLayout() {
     if (pathname === "/dashboard") return "Dashboard";
     if (pathname === "/dashboard/chat") return "AI Doctor";
     if (pathname === "/dashboard/reports") return "Medical Reports";
+    if (pathname === "/dashboard/anatomy" || pathname === "/anatomy") return "3D Body Atlas";
     if (pathname === "/dashboard/appointment") return "Book Doctor";
 
     if (pathname === "/dashboard/lab-tests") return "Lab Tests";
@@ -94,7 +97,7 @@ export function DashboardLayout() {
   return (
     <div className={cn(
       "flex bg-surface lg:flex-row",
-      pathname === "/dashboard/chat" || pathname === "/dashboard/reports"
+      pathname === "/dashboard/chat" || pathname === "/dashboard/reports" || pathname === "/dashboard/anatomy"
         ? "h-[100dvh] max-h-[100dvh] overflow-hidden"
         : "min-h-screen"
     )}>
@@ -188,7 +191,7 @@ export function DashboardLayout() {
 
         <main className={cn(
           "flex-1 flex flex-col min-h-0",
-          pathname === "/dashboard/reports" || pathname === "/dashboard/chat"
+          pathname === "/dashboard/reports" || pathname === "/dashboard/chat" || pathname === "/dashboard/anatomy"
             ? "p-0 pb-16 lg:pb-0 overflow-hidden"
             : "p-4 pb-24 lg:p-8 lg:pb-8 lg:mx-auto lg:max-w-6xl lg:w-full overflow-y-auto"
         )}>

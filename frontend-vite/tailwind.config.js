@@ -39,6 +39,13 @@ export default {
           red: "#dc2626",
           "red-light": "#fee2e2",
         },
+        // 3D Anatomy Viewer dark theme tokens
+        anatomy: {
+          bg: "#0a0e1a",
+          panel: "#111827",
+          accent: "#06b6d4",
+          highlight: "#22d3ee",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
@@ -56,6 +63,17 @@ export default {
       spacing: {
         18: "4.5rem",
         22: "5.5rem",
+      },
+      // 3D Anatomy Viewer animations
+      animation: {
+        "pulse-ring": "pulseRing 2s ease-in-out infinite",
+        "spin-slow": "spin 8s linear infinite",
+      },
+      keyframes: {
+        pulseRing: {
+          "0%, 100%": { transform: "scale(1)", opacity: "1" },
+          "50%": { transform: "scale(1.5)", opacity: "0" },
+        },
       },
     },
   },
