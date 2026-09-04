@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCard } from "@/components/UploadCard";
 import { ReportResult } from "@/components/ReportResult";
-import { Plus, Search, FileText, History, X, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { Search, FileText, X, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getReportHistory, getReportById, type ReportSummary } from "@/lib/api";
+import { useChatUiStore } from "@/stores/useChatUiStore";
 import type { ReportAnalysisResponse } from "@/types/report";
 
 function groupReportsByDate(reports: ReportSummary[]): Record<string, ReportSummary[]> {
@@ -32,7 +33,9 @@ function groupReportsByDate(reports: ReportSummary[]): Record<string, ReportSumm
 }
 
 export function ReportsPage() {
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyOpen = useChatUiStore((s) => s.reportsHistoryOpen);
+  const setHistoryOpen = useChatUiStore((s) => s.setReportsHistoryOpen);
+  const uploadReportCounter = useChatUiStore((s) => s.uploadReportCounter);
   const [searchQuery, setSearchQuery] = useState("");
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,6 +58,14 @@ export function ReportsPage() {
   useEffect(() => {
     if (historyOpen) fetchReports();
   }, [historyOpen, fetchReports]);
+
+  // Header "Upload Report" CTA resets to the upload zone
+  useEffect(() => {
+    if (uploadReportCounter > 0) {
+      setSelectedReportId(null);
+      setSelectedAnalysis(null);
+    }
+  }, [uploadReportCounter]);
 
   const handleSelectReport = async (reportId: string) => {
     setSelectedReportId(reportId);
@@ -175,37 +186,6 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col h-full w-full relative overflow-hidden bg-surface">
-      {/* Top Header */}
-      <header className="shrink-0 h-14 border-b border-stone-200 bg-surface/80 backdrop-blur-md px-4 flex items-center justify-between z-30">
-        <div className="flex items-center gap-3">
-          <h2 className="font-semibold text-content-primary hidden sm:block">Medical Reports</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="hidden sm:flex gap-2 rounded-xl"
-            onClick={() => { setSelectedReportId(null); setSelectedAnalysis(null); }}
-          >
-            <Plus className="h-4 w-4" />
-            <span>Upload Report</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="sm:hidden rounded-xl"
-            onClick={() => { setSelectedReportId(null); setSelectedAnalysis(null); }}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          
-          <Button variant="secondary" size="sm" onClick={() => setHistoryOpen(true)} className="gap-2 rounded-xl">
-            <History className="h-4 w-4" />
-            <span className="hidden sm:inline">History</span>
-          </Button>
-        </div>
-      </header>
-
       {/* History Overlay */}
       <AnimatePresence>
         {historyOpen && (
@@ -224,7 +204,7 @@ export function ReportsPage() {
 
       {/* Main Content */}
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-        <div className="w-full max-w-5xl mx-auto px-4 py-4 sm:px-6 lg:px-8 pb-28 lg:pb-12 h-full flex flex-col">
+        <div className="w-full max-w-5xl mx-auto px-4 py-4 sm:px-6 lg:px-8 pb-28 lg:pb-12 min-h-full flex flex-col justify-center">
           {loadingReport ? (
             <div className="flex-1 flex items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary-500" />

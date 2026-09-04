@@ -48,6 +48,7 @@ interface ViewerState {
   isClinicalNotesOpen: boolean;
   isAiAssistantOpen: boolean;
   searchQuery: string;
+  isDetailsExpanded: boolean;
 
   // ── Actions ─────────────────────────────────────────────────────────────
   setActiveNavTab: (tab: NavTab) => void;
@@ -77,6 +78,7 @@ interface ViewerState {
   setIsClinicalNotesOpen: (open: boolean) => void;
   setIsAiAssistantOpen: (open: boolean) => void;
   setSearchQuery: (query: string) => void;
+  setIsDetailsExpanded: (open: boolean) => void;
 }
 
 export const useViewerStore = create<ViewerState>((set) => ({
@@ -114,6 +116,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
   isClinicalNotesOpen: false,
   isAiAssistantOpen: false,
   searchQuery: "",
+  isDetailsExpanded: false,
 
   setActiveNavTab: (tab) => {
     set({ activeNavTab: tab });
@@ -128,6 +131,7 @@ export const useViewerStore = create<ViewerState>((set) => ({
     set({
       activeOrganId: organId,
       activeHotspot: null,
+      isDetailsExpanded: false,
       isLoading: true,
       clippingEnabled: false,
       clippingPosition: 0.5,
@@ -141,7 +145,11 @@ export const useViewerStore = create<ViewerState>((set) => ({
       activeHotspot: null,
     }),
 
-  setActiveHotspot: (hotspot) => set({ activeHotspot: hotspot }),
+  setActiveHotspot: (hotspot) =>
+    set((state) => ({
+      activeHotspot: hotspot,
+      isDetailsExpanded: hotspot ? true : state.isDetailsExpanded,
+    })),
 
   toggleBookmark: (organId) =>
     set((state) => ({
@@ -228,4 +236,6 @@ export const useViewerStore = create<ViewerState>((set) => ({
   setIsAiAssistantOpen: (open) => set({ isAiAssistantOpen: open }),
 
   setSearchQuery: (query) => set({ searchQuery: query }),
+
+  setIsDetailsExpanded: (open) => set({ isDetailsExpanded: open }),
 }));

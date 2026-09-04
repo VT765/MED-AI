@@ -10,9 +10,14 @@ import {
   LogOut,
   ChevronDown,
   Compass,
+  Menu,
+  X,
+  History,
+  Plus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
+import { useChatUiStore } from "@/stores/useChatUiStore";
 import { getCurrentUser, logout } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
@@ -35,9 +40,21 @@ export function DashboardLayout() {
   const [mounted, setMounted] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileCareOpen, setMobileCareOpen] = useState(false);
+  const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileCareRef = useRef<HTMLDivElement>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Anatomy page gets an immersive layout: main sidebar collapses to a hamburger
+  const isAnatomyPage = pathname === "/dashboard/anatomy" || pathname === "/anatomy";
+  const isChatPage = pathname === "/dashboard/chat";
+  const isReportsPage = pathname === "/dashboard/reports";
+  const setHistoryOpen = useChatUiStore((s) => s.setHistoryOpen);
+  const requestNewChat = useChatUiStore((s) => s.requestNewChat);
+  const setReportsHistoryOpen = useChatUiStore((s) => s.setReportsHistoryOpen);
+  const requestUploadReport = useChatUiStore((s) => s.requestUploadReport);
+
+  useEffect(() => { setSidebarDrawerOpen(false); }, [pathname]);
 
   const getPageTitle = () => {
     if (pathname === "/dashboard") return "Dashboard";
@@ -101,7 +118,39 @@ export function DashboardLayout() {
         ? "h-[100dvh] max-h-[100dvh] overflow-hidden"
         : "min-h-screen"
     )}>
-      <Sidebar />
+      {!isAnatomyPage && <Sidebar />}
+
+      {/* Anatomy page: sidebar as slide-over drawer behind a hamburger */}
+      <AnimatePresence>
+        {isAnatomyPage && sidebarDrawerOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-40 bg-black/30"
+              onClick={() => setSidebarDrawerOpen(false)}
+              aria-hidden
+            />
+            <motion.div
+              initial={{ x: -280 }} animate={{ x: 0 }} exit={{ x: -280 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="fixed inset-y-0 left-0 z-50 flex shadow-2xl"
+            >
+              <div className="[&>aside]:!flex [&>aside]:h-full flex">
+                <Sidebar />
+              </div>
+              <button
+                type="button"
+                onClick={() => setSidebarDrawerOpen(false)}
+                className="absolute right-2 top-3 rounded-lg p-1.5 text-content-tertiary hover:bg-surface-muted hover:text-content-primary"
+                aria-label="Close navigation"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-stone-200 bg-surface-elevated px-2 py-2 lg:hidden" aria-label="Mobile navigation">
         {primaryNav.map((item) => {
@@ -155,9 +204,65 @@ export function DashboardLayout() {
       <div className="flex flex-1 flex-col min-h-0 h-full overflow-hidden lg:ml-0">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-stone-200 bg-surface-elevated px-4 lg:px-8 shrink-0">
           <div className="flex items-center gap-2">
+            {isAnatomyPage && (
+              <button
+                type="button"
+                onClick={() => setSidebarDrawerOpen((o) => !o)}
+                className="mr-1 hidden rounded-xl border border-stone-200 bg-white p-2 text-content-secondary transition-colors hover:bg-stone-100 hover:text-content-primary lg:inline-flex"
+                aria-label="Open navigation menu"
+                aria-expanded={sidebarDrawerOpen}
+              >
+                <Menu className="h-4 w-4" aria-hidden />
+              </button>
+            )}
             <Logo size={28} className="h-7 w-7" />
             <h1 className="text-lg font-bold tracking-tight text-content-primary lg:text-xl">{getPageTitle()}</h1>
           </div>
+          <div className="flex items-center gap-2">
+            {isReportsPage && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setReportsHistoryOpen(true)}
+                  className="flex h-9 items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 text-xs font-semibold text-content-secondary transition-colors hover:bg-stone-100 hover:text-content-primary"
+                  title="Report history"
+                >
+                  <History className="h-4 w-4" aria-hidden />
+                  <span className="hidden sm:inline">History</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={requestUploadReport}
+                  className="flex h-9 items-center gap-1.5 rounded-xl bg-primary-600 px-3 text-xs font-semibold text-white shadow-soft transition-colors hover:bg-primary-700"
+                  title="Upload a new report"
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                  <span className="hidden sm:inline">Upload Report</span>
+                </button>
+              </>
+            )}
+            {isChatPage && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen(true)}
+                  className="flex h-9 items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 text-xs font-semibold text-content-secondary transition-colors hover:bg-stone-100 hover:text-content-primary"
+                  title="Chat history"
+                >
+                  <History className="h-4 w-4" aria-hidden />
+                  <span className="hidden sm:inline">History</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={requestNewChat}
+                  className="flex h-9 items-center gap-1.5 rounded-xl bg-primary-600 px-3 text-xs font-semibold text-white shadow-soft transition-colors hover:bg-primary-700"
+                  title="Start new chat"
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                  <span className="hidden sm:inline">New Chat</span>
+                </button>
+              </>
+            )}
           <div className="relative" ref={dropdownRef}>
             <button type="button" onClick={() => setDropdownOpen(!dropdownOpen)}
               className="flex items-center gap-1 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
@@ -186,6 +291,7 @@ export function DashboardLayout() {
                 </motion.div>
               )}
             </AnimatePresence>
+          </div>
           </div>
         </header>
 

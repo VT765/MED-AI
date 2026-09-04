@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope, Mic, Square } from "lucide-react";
+import { Send, Bot, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope, Mic, Square, ArrowDown, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getAuthToken } from "@/lib/auth";
+import { useChatUiStore } from "@/stores/useChatUiStore";
 import {
   apiUrl,
   sendChatMessage,
@@ -13,6 +16,7 @@ import {
   sendGuestChatMessage,
   startNewGuestChat,
   transcribeAudio,
+  getSessionHistory,
 } from "@/lib/api";
 
 export type ChatMode = "guest" | "authenticated";
@@ -35,6 +39,46 @@ function formatTimer(totalSeconds: number) {
 }
 
 const WAVEFORM_BARS = 28;
+
+// ── Markdown renderer for assistant replies ─────────────────
+function MessageMarkdown({ content }: { content: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+        ul: ({ children }) => <ul className="mb-2 last:mb-0 list-disc pl-5 space-y-1">{children}</ul>,
+        ol: ({ children }) => <ol className="mb-2 last:mb-0 list-decimal pl-5 space-y-1">{children}</ol>,
+        li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+        strong: ({ children }) => <strong className="font-semibold text-content-primary">{children}</strong>,
+        h1: ({ children }) => <h3 className="mt-3 mb-1.5 first:mt-0 text-[15px] font-bold text-content-primary">{children}</h3>,
+        h2: ({ children }) => <h3 className="mt-3 mb-1.5 first:mt-0 text-[15px] font-bold text-content-primary">{children}</h3>,
+        h3: ({ children }) => <h4 className="mt-2.5 mb-1 first:mt-0 text-sm font-bold text-content-primary">{children}</h4>,
+        a: ({ children, href }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 underline underline-offset-2 hover:text-primary-700">
+            {children}
+          </a>
+        ),
+        code: ({ children }) => (
+          <code className="rounded bg-stone-100 px-1.5 py-0.5 text-[13px] font-mono text-stone-700">{children}</code>
+        ),
+        blockquote: ({ children }) => (
+          <blockquote className="mb-2 border-l-2 border-primary-300 pl-3 text-content-secondary italic">{children}</blockquote>
+        ),
+        table: ({ children }) => (
+          <div className="mb-2 overflow-x-auto">
+            <table className="w-full border-collapse text-xs">{children}</table>
+          </div>
+        ),
+        th: ({ children }) => <th className="border border-stone-200 bg-stone-50 px-2 py-1.5 text-left font-semibold">{children}</th>,
+        td: ({ children }) => <td className="border border-stone-200 px-2 py-1.5">{children}</td>,
+        hr: () => <hr className="my-3 border-stone-200" />,
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
+}
 
 // ── Guest Welcome Card ──────────────────────────────────────
 
@@ -92,10 +136,13 @@ function GuestWelcomeCard({ onContinue }: { onContinue: () => void }) {
 
 interface ChatUIProps {
   mode?: ChatMode;
+  /** When set, loads that past session's messages into the chat. */
+  requestedSessionId?: string | null;
 }
 
-export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
+export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIProps) {
   const isGuest = mode === "guest";
+  const newChatCounter = useChatUiStore((s) => s.newChatCounter);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -110,6 +157,7 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
   const [showWelcome, setShowWelcome] = useState(isGuest);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [showScrollDown, setShowScrollDown] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [levels, setLevels] = useState<number[]>(() => new Array(WAVEFORM_BARS).fill(0.08));
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -133,6 +181,51 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
     }
   }, [messages, isLoading]);
 
+  // Show a scroll-to-bottom pill when the user has scrolled up
+  useEffect(() => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      setShowScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 280);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [isLoadingHistory]);
+
+  const scrollToBottom = () => {
+    chatContainerRef.current?.scrollTo({
+      top: chatContainerRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  };
+
+  // Load a specific past session picked from the history panel
+  useEffect(() => {
+    if (!requestedSessionId || isGuest) return;
+    let cancelled = false;
+    (async () => {
+      setIsLoadingHistory(true);
+      try {
+        const data = await getSessionHistory(requestedSessionId);
+        if (cancelled) return;
+        setSessionId(data.session_id);
+        setMessages(
+          (data.messages || []).map((m, i) => ({
+            id: `sess-${requestedSessionId}-${i}`,
+            role: m.role as "user" | "assistant",
+            content: m.content,
+            timestamp: new Date(m.timestamp),
+          }))
+        );
+      } catch {
+        // keep current conversation on failure
+      } finally {
+        if (!cancelled) setIsLoadingHistory(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [requestedSessionId, isGuest]);
+
   // Load chat history on mount (authenticated only)
   useEffect(() => {
     if (isGuest) {
@@ -152,20 +245,10 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
           }));
           setMessages(loaded);
         } else {
-          setMessages([{
-            id: "welcome",
-            role: "assistant",
-            content: "Hi there! 👋 I'm your AI health assistant. Tell me what's bothering you and I'll try to help.\n\n⚕️ I'm an AI assistant, not a real doctor. Always check with a healthcare professional.",
-            timestamp: new Date(),
-          }]);
+          setMessages([]);
         }
       } catch {
-        setMessages([{
-          id: "welcome",
-          role: "assistant",
-          content: "Hi there! 👋 I'm your AI health assistant. Tell me what's bothering you and I'll try to help.",
-          timestamp: new Date(),
-        }]);
+        setMessages([]);
       } finally {
         setIsLoadingHistory(false);
       }
@@ -404,18 +487,18 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
       setExtractedDocText(null);
       if (isGuest) {
         setShowWelcome(true);
-        setMessages([]);
-      } else {
-        setMessages([{
-          id: "welcome-new", role: "assistant",
-          content: "Fresh start! 👋 How can I help you today?\n\n⚕️ I'm an AI assistant, not a real doctor. Always check with a healthcare professional.",
-          timestamp: new Date(),
-        }]);
       }
+      setMessages([]);
     } catch (err: any) {
       setInputError(err.message || "Failed to start new chat");
     }
   };
+
+  // Header "New Chat" CTA (rendered in the dashboard layout) triggers this
+  useEffect(() => {
+    if (newChatCounter > 0) handleNewChat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newChatCounter]);
 
   // Pool of realistic quick prompts — randomized each session for freshness
   const allGuestPrompts = [
@@ -436,7 +519,8 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
   const allAuthPrompts = [
     "I have a headache",
     "What are signs of flu?",
-    "How to sleep better?",
+    "How can I sleep better?",
+    "Explain my latest report",
   ];
 
   // Pick 5 random prompts for guests, 3 for auth — stable per component mount
@@ -511,76 +595,77 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-stone-200 bg-surface shadow-card relative" role="region" aria-label="AI Doctor chat">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-surface relative" role="region" aria-label="AI Doctor chat">
 
-      {/* Header */}
-      <div className="shrink-0 border-b border-stone-200 bg-surface px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10 sticky top-0 backdrop-blur-md bg-white/90 relative overflow-hidden">
-        <div className="absolute top-0 right-1/4 w-32 h-32 bg-primary-300/20 rounded-full blur-3xl animate-pulse" style={{ animationDuration: "4s" }} />
-        <div className="absolute bottom-0 right-1/3 w-24 h-24 bg-teal-300/10 rounded-full blur-2xl animate-pulse" style={{ animationDuration: "5s" }} />
-
-        <div className="flex items-center gap-3 sm:gap-4 relative z-10">
-          <div className="relative flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-50 to-primary-100 text-primary-700 shadow-inner border border-primary-200" aria-hidden>
-            <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} className="absolute inset-0 bg-primary-400/20 rounded-full blur-md" />
-            {isGuest ? (
-              <BrainCircuit className="h-5 w-5 sm:h-6 sm:w-6 relative z-10" />
-            ) : (
-              <BrainCircuit className="h-5 w-5 sm:h-6 sm:w-6 relative z-10" />
-            )}
+      {/* Header — guest mode only; authenticated CTAs live in the app header */}
+      {isGuest && (
+        <div className="shrink-0 border-b border-stone-200 px-4 sm:px-6 py-2.5 flex items-center justify-between z-10 bg-white/85 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-teal-600 text-white shadow-soft" aria-hidden>
+              <BrainCircuit className="h-5 w-5" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-content-primary leading-tight">Guest Mode</h3>
+              <p className="text-[11px] text-content-tertiary">General medical guidance</p>
+            </div>
           </div>
-          <div>
-            {isGuest ? (
-              <>
-                <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight flex items-center gap-2">
-                  🟢 Guest Mode
-                </h3>
-                <p className="text-xs sm:text-sm font-medium text-content-secondary mt-0.5">
-                  General Medical Guidance
-                </p>
-              </>
-            ) : (
-              <>
-                <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight flex items-center gap-2">
-                  🩺 Personalized AI
-                </h3>
-                <p className="text-xs sm:text-sm font-medium flex items-center gap-1.5 mt-0.5 text-primary-600">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500" />
-                  </span>
-                  Using Your Health Profile
-                </p>
-              </>
-            )}
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2 relative z-10">
-          {isGuest && (
+          <div className="flex items-center gap-1.5">
             <Link
               to="/auth/login"
-              className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary-50 px-3 text-xs font-semibold text-primary-700 hover:bg-primary-100 transition-colors border border-primary-200"
+              className="hidden sm:inline-flex h-8 items-center gap-1.5 rounded-xl bg-primary-50 px-3 text-xs font-semibold text-primary-700 hover:bg-primary-100 transition-colors border border-primary-200"
             >
               <LogIn className="h-3.5 w-3.5" />
               Login for Personalized AI
             </Link>
-          )}
-          {!isGuest && fileName && (
-            <div className="hidden sm:flex items-center gap-2 bg-primary-50 px-3 py-1.5 rounded-full border border-primary-100">
-              <FileText className="w-4 h-4 text-primary-600" />
-              <span className="text-xs font-semibold text-primary-700 max-w-[120px] truncate">{fileName}</span>
-            </div>
-          )}
-          <Button type="button" variant="ghost" size="sm" onClick={handleNewChat} disabled={isLoading}
-            className="h-9 gap-1.5 rounded-xl text-xs font-semibold text-content-secondary hover:bg-primary-50 hover:text-primary-700 transition-colors" title="Start new chat">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">New Chat</span>
-          </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={handleNewChat} disabled={isLoading}
+              className="h-8 gap-1.5 rounded-xl text-xs font-semibold text-content-secondary hover:bg-primary-50 hover:text-primary-700 transition-colors" title="Start new chat">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">New Chat</span>
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Chat Area */}
-      <div ref={chatContainerRef} className="flex-1 min-h-0 overflow-y-auto bg-gray-50/50 p-4 sm:p-6 scroll-smooth">
-        <div className="mx-auto flex max-w-3xl flex-col gap-5 sm:gap-6">
+      <div ref={chatContainerRef} className="flex-1 min-h-0 overflow-y-auto bg-gradient-to-b from-stone-50/80 to-white p-4 sm:p-6 scroll-smooth">
+        <div className="mx-auto flex max-w-3xl flex-col gap-4 sm:gap-5">
+
+          {/* Empty state — modern hero with quick prompts */}
+          {messages.length === 0 && !isLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35 }}
+              className="flex flex-col items-center justify-center text-center pt-[10vh] px-4"
+            >
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-teal-600 text-white shadow-soft mb-4">
+                <Stethoscope className="h-7 w-7" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold text-content-primary tracking-tight">
+                How can I help you today?
+              </h2>
+              <p className="mt-1.5 text-sm text-content-secondary max-w-sm">
+                Describe your symptoms, ask a health question, or attach a medical report.
+              </p>
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
+                {quickPrompts.map((prompt, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleQuickPrompt(prompt)}
+                    className="rounded-xl border border-stone-200 bg-white px-4 py-3 text-left text-xs sm:text-sm font-medium text-content-secondary hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-700 transition-all shadow-xs"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-6 text-[11px] text-content-tertiary">
+                ⚕️ I'm an AI assistant, not a real doctor — always verify with a professional.
+              </p>
+            </motion.div>
+          )}
+
           <AnimatePresence initial={false}>
             {messages.map((msg) => {
               const isUser = msg.role === "user";
@@ -588,9 +673,9 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
 
               if (isSystem) {
                 return (
-                  <motion.div key={msg.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center my-2 sm:my-4">
+                  <motion.div key={msg.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center my-1">
                     <div className={cn("rounded-full px-4 py-1.5 text-xs font-medium max-w-[90%] text-center",
-                      msg.content.startsWith("⚠️") ? "bg-red-50 border border-red-200 text-red-600" : "bg-gray-100 border border-gray-200 text-gray-500"
+                      msg.content.startsWith("⚠️") ? "bg-red-50 border border-red-200 text-red-600" : "bg-stone-100 border border-stone-200 text-stone-500"
                     )}>
                       {msg.content}
                     </div>
@@ -599,66 +684,88 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
               }
 
               return (
-                <div key={msg.id}>
-                  <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-                    className={`flex gap-2.5 sm:gap-3 w-full ${isUser ? "justify-end" : "justify-start"}`}>
-                    {!isUser && (
-                      <div className="mt-1 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 shadow-sm border border-white" aria-hidden>
-                        <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
-                      </div>
-                    )}
-                    <div className={cn("max-w-[88%] sm:max-w-[75%] px-4 sm:px-5 py-3 sm:py-3.5 text-sm sm:text-[15px] leading-relaxed shadow-sm",
-                      isUser ? "rounded-2xl rounded-tr-sm bg-primary-600 text-white" : "rounded-2xl rounded-tl-sm border border-stone-200 bg-white text-gray-800"
-                    )}>
-                      <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-                      <p className={cn("mt-2 text-[10px] font-medium text-right", isUser ? "text-primary-200" : "text-gray-400")}>
-                        {formatTime(msg.timestamp)}
-                      </p>
+                <motion.div key={msg.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
+                  className={cn("group flex gap-2.5 w-full", isUser ? "justify-end" : "justify-start")}>
+                  {!isUser && (
+                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-teal-600 shadow-xs" aria-hidden>
+                      <Bot className="h-4 w-4 text-white" />
                     </div>
-                    {isUser && (
-                      <div className="mt-1 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 shadow-sm border border-white" aria-hidden>
-                        <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      </div>
-                    )}
-                  </motion.div>
-                </div>
+                  )}
+                  <div className={cn("flex flex-col max-w-[88%] sm:max-w-[78%]", isUser && "items-end")}>
+                    <div className={cn("px-4 py-2.5 sm:py-3 text-sm sm:text-[15px] leading-relaxed",
+                      isUser
+                        ? "rounded-2xl rounded-br-md bg-primary-600 text-white shadow-soft"
+                        : "rounded-2xl rounded-bl-md border border-stone-200/80 bg-white text-content-primary shadow-xs"
+                    )}>
+                      {isUser ? (
+                        <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                      ) : (
+                        <MessageMarkdown content={msg.content} />
+                      )}
+                    </div>
+                    <span className={cn(
+                      "mt-1 px-1 text-[10px] font-medium text-content-tertiary opacity-0 transition-opacity group-hover:opacity-100"
+                    )}>
+                      {formatTime(msg.timestamp)}
+                    </span>
+                  </div>
+                </motion.div>
               );
             })}
           </AnimatePresence>
 
           {isLoading && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2.5 sm:gap-3 w-full">
-              <div className="mt-1 flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 shadow-sm border border-white" aria-hidden>
-                <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2.5 w-full">
+              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-teal-600 shadow-xs" aria-hidden>
+                <Bot className="h-4 w-4 text-white" />
               </div>
-              <div className="rounded-2xl rounded-tl-sm border border-stone-200 bg-white px-5 py-4 shadow-sm" role="status" aria-label="AI is typing">
-                <div className="flex gap-1.5 items-center justify-center h-2.5">
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary-400 [animation-delay:-0.3s]" />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary-400 [animation-delay:-0.15s]" />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary-400" />
+              <div className="rounded-2xl rounded-bl-md border border-stone-200/80 bg-white px-4 py-3.5 shadow-xs" role="status" aria-label="AI is typing">
+                <div className="flex gap-1.5 items-center h-2">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-400 [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-400 [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary-400" />
                 </div>
               </div>
             </motion.div>
           )}
 
-          {messages.length === 1 && messages[0].role === "assistant" && !isLoading && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="flex flex-wrap gap-2 mt-2 sm:mt-4 ml-9 sm:ml-11">
-              {quickPrompts.map((prompt, i) => (
-                <button key={i} onClick={() => handleQuickPrompt(prompt)}
-                  className="bg-white border border-primary-200 text-primary-700 text-xs sm:text-sm py-1.5 px-3 rounded-full hover:bg-primary-50 transition-colors shadow-sm">
-                  {prompt}
-                </button>
-              ))}
-            </motion.div>
-          )}
-
-          <div ref={bottomRef} className="h-4" />
+          <div ref={bottomRef} className="h-2" />
         </div>
       </div>
 
+      {/* Scroll-to-bottom pill */}
+      <AnimatePresence>
+        {showScrollDown && (
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            onClick={scrollToBottom}
+            className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-content-secondary shadow-cardHover hover:text-primary-600 hover:border-primary-300 transition-colors"
+            aria-label="Scroll to latest message"
+          >
+            <ArrowDown className="h-4 w-4" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* Input */}
-      <div className="shrink-0 bg-white p-3 sm:p-4 md:p-6 pb-4 sm:pb-6 md:pb-8 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)] border-t border-gray-100 z-20">
+      <div className="shrink-0 bg-white/90 backdrop-blur-md p-3 sm:p-4 pb-3 sm:pb-4 border-t border-stone-100 z-20">
         <div className="mx-auto max-w-3xl relative">
+          {!isGuest && fileName && (
+            <div className="mb-2 inline-flex items-center gap-1.5 bg-primary-50 pl-2.5 pr-1.5 py-1 rounded-full border border-primary-100">
+              <FileText className="w-3.5 h-3.5 text-primary-600" />
+              <span className="text-[11px] font-semibold text-primary-700 max-w-[160px] truncate">{fileName}</span>
+              <button
+                type="button"
+                onClick={() => { setDocumentId(null); setFileName(null); setExtractedDocText(null); }}
+                className="rounded-full p-0.5 text-primary-400 hover:bg-primary-100 hover:text-primary-700"
+                title="Remove attached report"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
           {inputError && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               className="absolute -top-8 left-0 right-0 flex items-center gap-1.5 text-xs font-semibold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-200" role="alert">
@@ -667,7 +774,7 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
             </motion.div>
           )}
 
-          <div className={`relative flex items-end gap-1.5 sm:gap-2 rounded-2xl border bg-white p-1.5 sm:p-2 shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-primary-500/50 ${inputError ? "border-red-300 ring-4 ring-red-50" : "border-gray-200 hover:border-gray-300"}`}>
+          <div className={`relative flex items-end gap-1.5 sm:gap-2 rounded-[1.4rem] border bg-white p-1.5 sm:p-2 shadow-soft transition-all duration-200 focus-within:border-primary-400 focus-within:ring-4 focus-within:ring-primary-500/10 ${inputError ? "border-red-300 ring-4 ring-red-50" : "border-stone-200 hover:border-stone-300"}`}>
             {/* File upload — authenticated only */}
             {!isGuest && (
               <>
