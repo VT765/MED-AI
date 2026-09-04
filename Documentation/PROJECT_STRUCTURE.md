@@ -13,6 +13,8 @@
 med-ai-v3/                          ← Frontend mono-repo root
 ├── frontend-vite/                  ← Main Vite app
 ├── Documentation/                  ← Project docs folder
+│   ├── PROJECT_STRUCTURE.md        ← Codebase architecture and layout
+│   └── WORKFLOW.md                 ← End-to-end system and data workflows
 ├── package.json
 └── README.md
 

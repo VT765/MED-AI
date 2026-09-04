@@ -66,8 +66,16 @@ MedAI aims to **bridge the gap between patients and medical intelligence** by pr
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ System Architecture & Workflow
 
+Med-AI uses a decoupled, dual-backend microservice architecture:
+- **Frontend Layer:** React 18 + Vite + TypeScript + TailwindCSS + Three.js 3D Anatomy Engine
+- **Core API Backend:** FastAPI (`localhost:8000`) handling Authentication, Profile, Chat sessions, and Document Ingestion
+- **AI / LLM Microservice:** FastAPI (`localhost:8001`) with Groq Cloud integration (`llama3-70b-8192` & `llama-3.1-8b-instant`)
+- **Data Layer:** MongoDB Atlas for user profiles, persistent chat histories, and analyzed lab reports
+- **Parsing Pipeline:** PyPDF for digital documents + Tesseract OCR engine for scanned images
+
+📖 **Complete documentation:** See the full workflow, sequence diagrams, and architecture breakdown in [WORKFLOW.md](Documentation/WORKFLOW.md) and folder structure in [PROJECT_STRUCTURE.md](Documentation/PROJECT_STRUCTURE.md).
 
 ---
 
