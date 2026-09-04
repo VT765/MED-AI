@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope } from "lucide-react";
+import { Send, Bot, User, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope, Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getAuthToken } from "@/lib/auth";
@@ -12,6 +12,7 @@ import {
   startNewChat,
   sendGuestChatMessage,
   startNewGuestChat,
+  transcribeAudio,
 } from "@/lib/api";
 
 export type ChatMode = "guest" | "authenticated";
@@ -26,6 +27,14 @@ export interface ChatMessage {
 function formatTime(date: Date) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
+
+function formatTimer(totalSeconds: number) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+const WAVEFORM_BARS = 28;
 
 // ── Guest Welcome Card ──────────────────────────────────────
 
@@ -99,10 +108,21 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
   const [extractedDocText, setExtractedDocText] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(isGuest);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [levels, setLevels] = useState<number[]>(() => new Array(WAVEFORM_BARS).fill(0.08));
   const bottomRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const recordStartRef = useRef<number>(0);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -197,6 +217,136 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
+  // ── Voice input: record → transcribe → drop text into the box ──
+
+  const appendTranscript = (text: string) => {
+    setInput((prev) => (prev ? `${prev.trim()} ${text}` : text));
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+      }
+    }, 30);
+  };
+
+  // Tear down the live audio visualiser + timer.
+  const stopAudioViz = useCallback(() => {
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    setLevels(new Array(WAVEFORM_BARS).fill(0.08));
+    setRecordingTime(0);
+  }, []);
+
+  // Feed the waveform bars from the live mic amplitude.
+  const startAudioViz = (stream: MediaStream) => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const audioCtx: AudioContext = new AudioCtx();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.75;
+      source.connect(analyser);
+      audioContextRef.current = audioCtx;
+      const data = new Uint8Array(analyser.frequencyBinCount);
+
+      const tick = () => {
+        analyser.getByteFrequencyData(data);
+        const next: number[] = [];
+        for (let i = 0; i < WAVEFORM_BARS; i++) {
+          // Sample lower/mid bins where voice energy lives, mirror for symmetry.
+          const idx = Math.floor(Math.abs(i - WAVEFORM_BARS / 2)) + 1;
+          next.push(Math.max(0.08, (data[idx] ?? 0) / 255));
+        }
+        setLevels(next);
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch {
+      // Visualiser is best-effort; recording still works without it.
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const startRecording = async () => {
+    setInputError(null);
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setInputError("Voice input isn't supported in this browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stopAudioViz();
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        if (blob.size === 0) return;
+
+        setIsTranscribing(true);
+        try {
+          const { text } = await transcribeAudio(blob);
+          if (text) appendTranscript(text);
+          else setInputError("Didn't catch that — please try again.");
+        } catch (err: any) {
+          setInputError(err.message || "Couldn't transcribe your voice. Please try again.");
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+
+      // Kick off the live waveform + elapsed timer.
+      startAudioViz(stream);
+      recordStartRef.current = Date.now();
+      setRecordingTime(0);
+      timerRef.current = window.setInterval(() => {
+        setRecordingTime(Math.floor((Date.now() - recordStartRef.current) / 1000));
+      }, 250);
+    } catch {
+      setInputError("Microphone access was blocked. Allow mic access to use voice input.");
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) stopRecording();
+    else startRecording();
+  };
+
+  // Stop any active recording/stream if the component unmounts mid-record.
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      stopAudioViz();
+    };
+  }, [stopAudioViz]);
 
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();
@@ -530,15 +680,60 @@ export function ChatUI({ mode = "authenticated" }: ChatUIProps) {
               </>
             )}
 
-            <textarea ref={textareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
-              placeholder={isGuest ? "Ask a health question..." : "Describe your symptoms or ask a health question..."}
-              className={cn(
-                "max-h-[120px] min-h-[40px] sm:min-h-[44px] w-full resize-none bg-transparent py-2.5 sm:py-3 text-sm sm:text-[15px] outline-none placeholder:text-gray-400 disabled:opacity-50",
-                isGuest && "ml-3"
-              )}
-              disabled={isLoading || isUploading} aria-invalid={!!inputError} rows={1} />
+            {isRecording ? (
+              <div className="flex-1 flex items-center gap-2 sm:gap-3 h-[44px] px-2 sm:px-3" role="status" aria-label="Recording your voice">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+                </span>
+                <span className="text-xs font-bold text-red-500 tabular-nums shrink-0">{formatTimer(recordingTime)}</span>
+                <div className="flex-1 flex items-center justify-center gap-[3px] h-8 overflow-hidden">
+                  {levels.map((l, i) => (
+                    <span
+                      key={i}
+                      className="w-[3px] rounded-full bg-primary-500 transition-[height] duration-75 ease-out"
+                      style={{ height: `${Math.max(10, l * 100)}%` }}
+                    />
+                  ))}
+                </div>
+                <span className="text-[11px] font-medium text-content-tertiary shrink-0 hidden sm:inline">Recording…</span>
+              </div>
+            ) : (
+              <textarea ref={textareaRef} value={input} onChange={handleInput} onKeyDown={handleKeyDown}
+                placeholder={
+                  isTranscribing ? "Transcribing your voice…"
+                  : isGuest ? "Ask a health question..."
+                  : "Describe your symptoms or ask a health question..."
+                }
+                className={cn(
+                  "max-h-[120px] min-h-[40px] sm:min-h-[44px] w-full resize-none bg-transparent py-2.5 sm:py-3 text-sm sm:text-[15px] outline-none placeholder:text-gray-400 disabled:opacity-50",
+                  isTranscribing && "animate-pulse",
+                  isGuest && "ml-3"
+                )}
+                disabled={isLoading || isUploading || isTranscribing} aria-invalid={!!inputError} rows={1} />
+            )}
 
-            <Button type="button" onClick={handleSend} disabled={!input.trim() || isLoading || isUploading} aria-label="Send message"
+            {/* Voice input — record then transcribe */}
+            <Button type="button" variant="ghost" size="icon" onClick={toggleRecording}
+              disabled={isLoading || isUploading || isTranscribing}
+              aria-label={isRecording ? "Stop recording" : "Record voice message"}
+              title={isRecording ? "Stop recording" : "Speak your question"}
+              className={cn(
+                "h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-xl mb-0.5 sm:mb-1 transition-colors flex items-center justify-center p-0",
+                isRecording
+                  ? "bg-red-500 text-white hover:bg-red-600 animate-pulse"
+                  : "text-gray-500 hover:bg-gray-100 hover:text-primary-600"
+              )}>
+              {isTranscribing ? (
+                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+              ) : isRecording ? (
+                <Square className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+              ) : (
+                <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
+              )}
+            </Button>
+
+            <Button type="button" onClick={handleSend} disabled={!input.trim() || isLoading || isUploading || isRecording || isTranscribing} aria-label="Send message"
               className={`h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-xl mb-0.5 sm:mb-1 mr-0.5 sm:mr-1 transition-all duration-200 flex items-center justify-center p-0 ${input.trim() && !isLoading ? "bg-primary-600 hover:bg-primary-700 text-white shadow-soft hover:shadow-md" : "bg-gray-100 text-gray-400"}`}>
               <Send className="h-4 w-4 sm:h-[18px] sm:w-[18px] ml-0.5" aria-hidden />
             </Button>

@@ -98,6 +98,33 @@ export async function startNewChat(): Promise<{ session_id: string }> {
   return data;
 }
 
+// ── Voice transcription (speech-to-text) ───────────────────
+
+export async function transcribeAudio(blob: Blob): Promise<{ text: string }> {
+  const form = new FormData();
+  // Filename extension hints the audio format to Groq Whisper.
+  form.append("file", blob, "recording.webm");
+
+  const token = getAuthToken();
+  // NOTE: do NOT set Content-Type — the browser adds the multipart boundary.
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(apiUrl("/api/chat/transcribe"), {
+    method: "POST",
+    headers,
+    body: form,
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || data.message || "Failed to transcribe audio");
+  }
+
+  return data as { text: string };
+}
+
 // ── Guest Chat API (no auth required) ───────────────────────
 
 export async function sendGuestChatMessage(

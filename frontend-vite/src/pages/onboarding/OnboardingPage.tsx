@@ -1,30 +1,25 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, CheckCircle, SkipForward, Activity, User, HeartPulse, FileText, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, CheckCircle, SkipForward, ShieldCheck, HeartPulse, Stethoscope, Droplets, Activity, FileText, User } from "lucide-react";
 
 import { saveProfile } from "@/lib/profile";
-
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { TagInput } from "@/components/ui/tag-input";
 
-// --- Types ---
 type OnboardingData = {
-  // Step 1
   fullName: string;
   dob: string;
   gender: string;
   bloodGroup: string;
   phone: string;
-  // Step 2
-  height: string; // cm
-  weight: string; // kg
+  height: string;
+  weight: string;
   activityLevel: string;
-  // Step 3
   conditions: Record<string, { yes: boolean; details: string }>;
 };
 
@@ -34,23 +29,21 @@ const initialData: OnboardingData = {
   conditions: {
     diabetes: { yes: false, details: "" },
     hypertension: { yes: false, details: "" },
-    heartConditions: { yes: false, details: "" },
+    asthma: { yes: false, details: "" },
+    thyroid: { yes: false, details: "" },
+    heartDisease: { yes: false, details: "" },
+    otherConditions: { yes: false, details: "" },
     allergies: { yes: false, details: "" },
     medications: { yes: false, details: "" },
     surgeries: { yes: false, details: "" },
-    smoker: { yes: false, details: "" },
-    alcohol: { yes: false, details: "" },
-    exercise: { yes: false, details: "" },
-    familyHistory: { yes: false, details: "" },
+    familyHistory_diabetes: { yes: false, details: "" },
+    familyHistory_hypertension: { yes: false, details: "" },
+    familyHistory_heartDisease: { yes: false, details: "" },
+    familyHistory_cancer: { yes: false, details: "" },
+    familyHistory_asthma: { yes: false, details: "" },
+    familyHistory_other: { yes: false, details: "" },
   }
 };
-
-const steps = [
-  { id: 1, title: "Personal Info", icon: User },
-  { id: 2, title: "Physical Info", icon: Activity },
-  { id: 3, title: "Health Profile", icon: HeartPulse },
-  { id: 4, title: "Review", icon: FileText },
-];
 
 export function OnboardingPage() {
   const navigate = useNavigate();
@@ -59,11 +52,13 @@ export function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const totalSteps = 8;
+
   const updateData = (fields: Partial<OnboardingData>) => {
     setData((prev) => ({ ...prev, ...fields }));
   };
 
-  const updateCondition = (key: keyof OnboardingData['conditions'], field: 'yes' | 'details', value: any) => {
+  const updateCondition = (key: string, field: 'yes' | 'details', value: any) => {
     setData(prev => ({
       ...prev,
       conditions: {
@@ -76,8 +71,18 @@ export function OnboardingPage() {
     }));
   };
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, steps.length));
+  const toggleConditionYes = (key: string) => {
+    const isYes = data.conditions[key]?.yes || false;
+    updateCondition(key, 'yes', !isYes);
+  };
+
+  const setConditionYes = (key: string, value: boolean) => {
+    updateCondition(key, 'yes', value);
+  };
+
+  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+  const handleSkip = () => navigate("/dashboard");
 
   const handleComplete = async () => {
     setSaving(true);
@@ -93,314 +98,538 @@ export function OnboardingPage() {
     }
   };
 
-  const handleSkip = () => {
-    navigate("/dashboard");
-  };
-
-  const calculateBMI = () => {
-    if (!data.height || !data.weight) return null;
-    const h = parseFloat(data.height) / 100;
-    const w = parseFloat(data.weight);
-    if (h > 0 && w > 0) return (w / (h * h)).toFixed(1);
-    return null;
-  };
+  const renderProgressBar = () => (
+    <div className="w-full mb-8">
+      <div className="flex justify-between items-center mb-2">
+        {currentStep > 1 ? (
+          <button onClick={prevStep} className="text-gray-500 hover:text-gray-700">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        ) : <div className="w-5 h-5"></div>}
+        <span className="text-sm font-medium text-gray-500">{currentStep} of {totalSteps}</span>
+      </div>
+      <div className="h-1 w-full bg-teal-100 rounded-full overflow-hidden">
+        <div 
+          className="h-full bg-teal-500 transition-all duration-300 ease-out"
+          style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+        ></div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-surface-50 flex flex-col pt-12 pb-24 px-4 sm:px-6">
-      
-      <div className="w-full max-w-3xl mx-auto flex justify-between items-center mb-8">
-         <h1 className="text-2xl font-bold text-primary-700">MedAI Setup</h1>
-         <Button variant="ghost" onClick={handleSkip} className="text-content-secondary hover:text-content-primary">
-           Skip for Now <SkipForward className="ml-2 h-4 w-4" />
-         </Button>
-      </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
+      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col min-h-[600px]">
+        <div className="p-8 flex-1 flex flex-col">
+          <div className="flex items-center gap-2 mb-6">
+             <div className="flex gap-1 text-teal-600">
+                <ShieldCheck className="w-6 h-6" />
+                <span className="font-bold text-lg">MedAI</span>
+             </div>
+          </div>
 
-      <div className="w-full max-w-3xl mx-auto mb-8">
-        {/* Progress Indicator */}
-        <div className="flex items-center justify-between relative">
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-border/50 rounded-full z-0"></div>
-          <div 
-            className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary-500 rounded-full z-0 transition-all duration-500 ease-in-out"
-            style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
-          ></div>
+          {currentStep > 1 && renderProgressBar()}
 
-          {steps.map((step) => {
-            const isCompleted = currentStep > step.id;
-            const isCurrent = currentStep === step.id;
-            return (
-              <div key={step.id} className="relative z-10 flex flex-col items-center gap-2">
-                <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors duration-300",
-                  isCompleted ? "bg-primary-500 border-primary-500 text-white" : 
-                  isCurrent ? "bg-white border-primary-500 text-primary-600 shadow-md" : 
-                  "bg-white border-border/50 text-content-tertiary"
-                )}>
-                  {isCompleted ? <CheckCircle className="h-5 w-5" /> : <step.icon className="h-4 w-4" />}
-                </div>
-                <span className={cn("text-xs font-medium hidden sm:block", isCurrent ? "text-primary-700" : "text-content-tertiary")}>
-                  {step.title}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="w-full max-w-3xl mx-auto flex-1 relative">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentStep}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-            className="w-full"
-          >
-            <Card className="shadow-lg border-border/40 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="border-b border-border/30 bg-surface-50/50 pb-6 rounded-t-xl">
-                <CardTitle className="text-2xl">{steps[currentStep-1].title}</CardTitle>
-                <CardDescription>
-                  {currentStep === 1 && "Let's start with some basic information about you."}
-                  {currentStep === 2 && "This helps us tailor health insights to your body type."}
-                  {currentStep === 3 && "A quick health check to understand your medical background."}
-                  {currentStep === 4 && "Review your information before completing the setup."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6 sm:p-8">
-                
-                {/* STEP 1 */}
+          <div className="flex-1 relative">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                className="w-full"
+              >
+                {/* Step 1: Welcome */}
                 {currentStep === 1 && (
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label htmlFor="fullName">Full Name</Label>
-                      <Input id="fullName" value={data.fullName} onChange={e => updateData({fullName: e.target.value})} placeholder="John Doe" />
+                  <div className="flex flex-col h-full">
+                    <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                      Let's understand <br/><span className="text-teal-600">you better</span>
+                    </h1>
+                    <p className="text-gray-500 mb-8 max-w-xs">
+                      Please share your medical history to help our AI and doctors provide personalized care.
+                    </p>
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="w-64 h-64 bg-teal-50 rounded-full flex items-center justify-center relative">
+                        <FileText className="w-24 h-24 text-teal-300" />
+                        <div className="absolute bottom-4 right-4 bg-teal-500 p-3 rounded-full text-white shadow-lg">
+                          <HeartPulse className="w-8 h-8" />
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="dob">Date of Birth</Label>
-                      <Input id="dob" type="date" value={data.dob} onChange={e => updateData({dob: e.target.value})} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="gender">Gender</Label>
-                      <select id="gender" value={data.gender} onChange={e => updateData({gender: e.target.value})} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                        <option value="">Select gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                        <option value="prefer-not-to-say">Prefer not to say</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="bloodGroup">Blood Group (Optional)</Label>
-                      <select id="bloodGroup" value={data.bloodGroup} onChange={e => updateData({bloodGroup: e.target.value})} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                        <option value="">Select blood group</option>
-                        <option value="A+">A+</option>
-                        <option value="A-">A-</option>
-                        <option value="B+">B+</option>
-                        <option value="B-">B-</option>
-                        <option value="AB+">AB+</option>
-                        <option value="AB-">AB-</option>
-                        <option value="O+">O+</option>
-                        <option value="O-">O-</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number (Optional)</Label>
-                      <Input id="phone" type="tel" value={data.phone} onChange={e => updateData({phone: e.target.value})} placeholder="+1 (555) 000-0000" />
+                    <Button onClick={nextStep} className="w-full bg-teal-600 hover:bg-teal-700 text-lg h-14 rounded-xl mt-8">
+                      Start <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                    <div className="mt-4 flex justify-center items-center text-sm text-gray-500 gap-2">
+                      <ShieldCheck className="w-4 h-4 text-teal-500" /> Your data is secure and private
                     </div>
                   </div>
                 )}
 
-                {/* STEP 2 */}
+                {/* Step 2: Basic Info */}
                 {currentStep === 2 && (
-                  <div className="space-y-8">
-                    <div className="grid gap-6 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="height">Height (cm)</Label>
-                        <Input id="height" type="number" placeholder="175" value={data.height} onChange={e => updateData({height: e.target.value})} />
+                  <div className="flex flex-col h-full items-center text-center">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">1. Basic Information</h2>
+                    <p className="text-gray-500 mb-10">Let's start with some basics</p>
+
+                    <div className="w-full max-w-sm space-y-8 text-left">
+                      <div className="space-y-3">
+                        <Label className="text-gray-700 font-medium">What is your age?</Label>
+                        <Input 
+                          type="number" 
+                          placeholder="e.g. 25" 
+                          value={data.dob} // Reusing dob field for age for simplicity, or we can use dob as year
+                          onChange={(e) => updateData({ dob: e.target.value })}
+                          className="h-12 rounded-xl border-gray-200"
+                        />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="weight">Weight (kg)</Label>
-                        <Input id="weight" type="number" placeholder="70" value={data.weight} onChange={e => updateData({weight: e.target.value})} />
+
+                      <div className="space-y-3">
+                        <Label className="text-gray-700 font-medium">What is your gender?</Label>
+                        <div className="grid grid-cols-3 gap-3">
+                          {['Male', 'Female', 'Other'].map((g) => (
+                            <button
+                              key={g}
+                              onClick={() => updateData({ gender: g })}
+                              className={cn(
+                                "flex items-center justify-center h-12 rounded-xl border font-medium transition-colors",
+                                data.gender === g 
+                                  ? "border-teal-500 bg-teal-50 text-teal-700" 
+                                  : "border-gray-200 text-gray-600 hover:border-teal-200"
+                              )}
+                            >
+                              {g}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                     
-                    {calculateBMI() && (
-                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-primary-50 p-4 rounded-lg flex items-center justify-between border border-primary-100">
-                          <div>
-                            <p className="text-sm text-primary-700 font-medium">Calculated BMI</p>
-                            <p className="text-xs text-primary-600/80 mt-1">Body Mass Index based on height and weight</p>
-                          </div>
-                          <div className="text-2xl font-bold text-primary-800">
-                             {calculateBMI()}
-                          </div>
-                       </motion.div>
-                    )}
-
-                    <div className="space-y-3">
-                      <Label>Activity Level</Label>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {[
-                          { id: 'sedentary', label: 'Sedentary', desc: 'Little or no exercise' },
-                          { id: 'lightly', label: 'Lightly Active', desc: 'Light exercise 1-3 days/week' },
-                          { id: 'moderately', label: 'Moderately Active', desc: 'Moderate exercise 3-5 days/week' },
-                          { id: 'very', label: 'Very Active', desc: 'Hard exercise 6-7 days/week' },
-                        ].map(level => (
-                          <div 
-                            key={level.id}
-                            onClick={() => updateData({activityLevel: level.id})}
-                            className={cn(
-                              "border rounded-xl p-4 cursor-pointer transition-all",
-                              data.activityLevel === level.id 
-                                ? "border-primary-500 bg-primary-50/50 shadow-sm" 
-                                : "border-border/60 hover:border-border hover:bg-surface-50"
-                            )}
-                          >
-                             <p className="font-medium text-content-primary mb-1">{level.label}</p>
-                             <p className="text-xs text-content-tertiary">{level.desc}</p>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="mt-auto w-full pt-10">
+                      <Button onClick={nextStep} className="w-full bg-teal-600 hover:bg-teal-700 h-12 rounded-xl text-lg">
+                        Next <ArrowRight className="ml-2 w-5 h-5" />
+                      </Button>
+                      <button onClick={handleSkip} className="mt-4 text-teal-600 font-medium text-sm hover:underline">
+                        Skip for now
+                      </button>
                     </div>
                   </div>
                 )}
 
-                {/* STEP 3 */}
+                {/* Step 3: Existing Conditions */}
                 {currentStep === 3 && (
-                  <div className="space-y-6">
-                     {[
-                       { key: 'diabetes', label: 'Do you have diabetes?' },
-                       { key: 'hypertension', label: 'Do you have high blood pressure?' },
-                       { key: 'heartConditions', label: 'Do you have any heart-related conditions?' },
-                       { key: 'allergies', label: 'Do you have any allergies?' },
-                       { key: 'medications', label: 'Are you currently taking any medications?' },
-                       { key: 'surgeries', label: 'Have you had any major surgeries?' },
-                       { key: 'smoker', label: 'Do you smoke?' },
-                       { key: 'alcohol', label: 'Do you consume alcohol?' },
-                       { key: 'familyHistory', label: 'Any family history of diabetes, hypertension, or heart disease?' },
-                     ].map(q => (
-                       <div key={q.key} className="border-b border-border/40 pb-5 last:border-0 last:pb-0">
-                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                           <Label className="text-sm font-medium text-content-primary leading-relaxed sm:max-w-[70%]">{q.label}</Label>
-                           <div className="flex items-center gap-2 shrink-0">
-                             <Checkbox 
-                               checked={data.conditions[q.key as keyof OnboardingData['conditions']].yes}
-                               onChange={(e) => updateCondition(q.key as any, 'yes', e.target.checked)}
-                               id={`condition-${q.key}`}
-                               className="h-5 w-5"
-                             />
-                           </div>
-                         </div>
-                         <AnimatePresence>
-                           {data.conditions[q.key as keyof OnboardingData['conditions']].yes && (
-                             <motion.div
-                               initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                               animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
-                               exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                               className="overflow-hidden"
-                             >
-                               <Input 
-                                 placeholder="Please provide details..." 
-                                 value={data.conditions[q.key as keyof OnboardingData['conditions']].details}
-                                 onChange={e => updateCondition(q.key as any, 'details', e.target.value)}
-                                 className="bg-surface-50 border-primary-100 focus-visible:ring-primary-200"
-                               />
-                             </motion.div>
-                           )}
-                         </AnimatePresence>
-                       </div>
-                     ))}
+                  <div className="flex flex-col h-full items-center text-center">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">2. Existing Conditions</h2>
+                    <p className="text-gray-500 mb-8">Do you have any diagnosed medical conditions?</p>
+
+                    <div className="w-full max-w-md grid grid-cols-2 gap-3 mb-6">
+                      {[
+                        { id: 'diabetes', label: 'Diabetes', icon: Droplets },
+                        { id: 'hypertension', label: 'Hypertension', icon: Activity },
+                        { id: 'asthma', label: 'Asthma', icon: HeartPulse },
+                        { id: 'thyroid', label: 'Thyroid', icon: Stethoscope },
+                        { id: 'heartDisease', label: 'Heart Disease', icon: HeartPulse },
+                        { id: 'otherConditions', label: 'Other', icon: FileText },
+                      ].map((cond) => (
+                        <button
+                          key={cond.id}
+                          onClick={() => toggleConditionYes(cond.id)}
+                          className={cn(
+                            "flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
+                            data.conditions[cond.id]?.yes 
+                              ? "border-teal-500 bg-teal-50 text-teal-700 shadow-sm" 
+                              : "border-gray-200 text-gray-600 hover:border-teal-200"
+                          )}
+                        >
+                          <cond.icon className={cn("w-5 h-5", data.conditions[cond.id]?.yes ? "text-teal-600" : "text-teal-400")} />
+                          <span className="font-medium text-sm">{cond.label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="w-full max-w-md text-left">
+                      <Label className="text-gray-500 text-sm mb-2 block">Anything else we should know?</Label>
+                      <Input 
+                        placeholder="Please specify" 
+                        value={data.conditions.otherConditions?.details || ""}
+                        onChange={(e) => updateCondition('otherConditions', 'details', e.target.value)}
+                        className="h-12 rounded-xl border-gray-200"
+                      />
+                    </div>
+
+                    <div className="mt-auto w-full pt-10">
+                      <Button onClick={nextStep} className="w-full bg-teal-600 hover:bg-teal-700 h-12 rounded-xl text-lg">
+                        Next <ArrowRight className="ml-2 w-5 h-5" />
+                      </Button>
+                      <button onClick={handleSkip} className="mt-4 text-teal-600 font-medium text-sm hover:underline">
+                        Skip for now
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                {/* STEP 4 */}
+                {/* Step 4: Allergies */}
                 {currentStep === 4 && (
-                  <div className="space-y-8">
-                     
-                     <div className="bg-surface-50 p-5 rounded-xl border border-border/40 relative">
-                        <div className="absolute right-4 top-4">
-                           <Button variant="outline" size="sm" onClick={() => setCurrentStep(1)} className="h-8 px-3 text-xs">Edit</Button>
-                        </div>
-                        <h4 className="font-semibold text-content-primary mb-4 flex items-center gap-2"><User className="h-4 w-4 text-primary-500"/> Personal Info</h4>
-                        <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
-                           <div><span className="text-content-tertiary">Name:</span> <span className="font-medium text-content-primary">{data.fullName || '-'}</span></div>
-                           <div><span className="text-content-tertiary">DOB:</span> <span className="font-medium text-content-primary">{data.dob || '-'}</span></div>
-                           <div><span className="text-content-tertiary">Gender:</span> <span className="font-medium text-content-primary capitalize">{data.gender || '-'}</span></div>
-                           <div><span className="text-content-tertiary">Blood:</span> <span className="font-medium text-content-primary">{data.bloodGroup || '-'}</span></div>
-                        </div>
-                     </div>
+                  <div className="flex flex-col h-full items-center text-center">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">3. Allergies</h2>
+                    <p className="text-gray-500 mb-8">Are you allergic to any substance, medication or food?</p>
 
-                     <div className="bg-surface-50 p-5 rounded-xl border border-border/40 relative">
-                        <div className="absolute right-4 top-4">
-                           <Button variant="outline" size="sm" onClick={() => setCurrentStep(2)} className="h-8 px-3 text-xs">Edit</Button>
-                        </div>
-                        <h4 className="font-semibold text-content-primary mb-4 flex items-center gap-2"><Activity className="h-4 w-4 text-primary-500"/> Physical Info</h4>
-                        <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
-                           <div><span className="text-content-tertiary">Height:</span> <span className="font-medium text-content-primary">{data.height ? `${data.height} cm` : '-'}</span></div>
-                           <div><span className="text-content-tertiary">Weight:</span> <span className="font-medium text-content-primary">{data.weight ? `${data.weight} kg` : '-'}</span></div>
-                           <div><span className="text-content-tertiary">BMI:</span> <span className="font-medium text-content-primary">{calculateBMI() || '-'}</span></div>
-                           <div><span className="text-content-tertiary">Activity:</span> <span className="font-medium text-content-primary capitalize">{data.activityLevel || '-'}</span></div>
-                        </div>
-                     </div>
-                     
-                     <div className="bg-surface-50 p-5 rounded-xl border border-border/40 relative">
-                        <div className="absolute right-4 top-4">
-                           <Button variant="outline" size="sm" onClick={() => setCurrentStep(3)} className="h-8 px-3 text-xs">Edit</Button>
-                        </div>
-                        <h4 className="font-semibold text-content-primary mb-4 flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary-500"/> Health Profile</h4>
-                        <div className="text-sm space-y-2">
-                           {Object.entries(data.conditions).filter(([_, v]) => v.yes).length === 0 ? (
-                              <p className="text-content-secondary italic">No notable health conditions reported.</p>
-                           ) : (
-                              <ul className="list-disc list-inside space-y-1 text-content-secondary">
-                                 {Object.entries(data.conditions).map(([k, v]) => {
-                                    if (!v.yes) return null;
-                                    const label = k.charAt(0).toUpperCase() + k.slice(1);
-                                    return (
-                                       <li key={k}>
-                                          <span className="font-medium text-content-primary">{label}</span>
-                                          {v.details && <span className="text-content-tertiary"> - {v.details}</span>}
-                                       </li>
-                                    );
-                                 })}
-                              </ul>
-                           )}
-                        </div>
-                     </div>
+                    <div className="w-full max-w-md space-y-3 mb-8">
+                      <button
+                        onClick={() => setConditionYes('allergies', false)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
+                          !data.conditions.allergies?.yes 
+                            ? "border-teal-500 bg-teal-50 text-teal-700 shadow-sm" 
+                            : "border-gray-200 text-gray-600 hover:border-teal-200"
+                        )}
+                      >
+                        <CheckCircle className={cn("w-5 h-5", !data.conditions.allergies?.yes ? "text-teal-600" : "text-gray-300")} />
+                        <span className="font-medium text-sm">No known allergies</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => setConditionYes('allergies', true)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
+                          data.conditions.allergies?.yes 
+                            ? "border-teal-500 bg-teal-50 text-teal-700 shadow-sm" 
+                            : "border-gray-200 text-gray-600 hover:border-teal-200"
+                        )}
+                      >
+                        <CheckCircle className={cn("w-5 h-5", data.conditions.allergies?.yes ? "text-teal-600" : "text-gray-300")} />
+                        <span className="font-medium text-sm">Yes, I have allergies</span>
+                      </button>
+                    </div>
 
+                    {data.conditions.allergies?.yes && (
+                      <div className="w-full max-w-md text-left mb-6">
+                        <Label className="text-gray-700 font-medium mb-2 block">Please list your allergies</Label>
+                        <TagInput 
+                          tags={data.conditions.allergies.details ? data.conditions.allergies.details.split(',').filter(Boolean) : []}
+                          setTags={(tags) => updateCondition('allergies', 'details', tags.join(','))}
+                          placeholder="E.g. Penicillin, Peanuts, Pollen"
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+
+                    <div className="w-full max-w-md bg-teal-50 p-4 rounded-xl flex items-start gap-3 mt-auto mb-6">
+                      <ShieldCheck className="w-5 h-5 text-teal-600 mt-0.5 shrink-0" />
+                      <p className="text-sm text-teal-800">This helps us prevent allergic reactions and provide safer care.</p>
+                    </div>
+
+                    <div className="w-full">
+                      <Button onClick={nextStep} className="w-full bg-teal-600 hover:bg-teal-700 h-12 rounded-xl text-lg">
+                        Next <ArrowRight className="ml-2 w-5 h-5" />
+                      </Button>
+                      <button onClick={handleSkip} className="mt-4 text-teal-600 font-medium text-sm hover:underline">
+                        Skip for now
+                      </button>
+                    </div>
                   </div>
                 )}
-              </CardContent>
-              <div className="p-6 sm:p-8 pt-0 border-t border-border/30 bg-surface-50/30 rounded-b-xl flex flex-col gap-3 mt-6">
-                {saveError && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                    {saveError}
+
+                {/* Step 5: Current Medications */}
+                {currentStep === 5 && (
+                  <div className="flex flex-col h-full items-center text-center">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">4. Current Medications</h2>
+                    <p className="text-gray-500 mb-8">Are you currently taking any medications?</p>
+
+                    <div className="w-full max-w-md space-y-3 mb-8">
+                      <button
+                        onClick={() => setConditionYes('medications', false)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
+                          !data.conditions.medications?.yes 
+                            ? "border-teal-500 bg-teal-50 text-teal-700 shadow-sm" 
+                            : "border-gray-200 text-gray-600 hover:border-teal-200"
+                        )}
+                      >
+                        <CheckCircle className={cn("w-5 h-5", !data.conditions.medications?.yes ? "text-teal-600" : "text-gray-300")} />
+                        <span className="font-medium text-sm">No medications</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => setConditionYes('medications', true)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
+                          data.conditions.medications?.yes 
+                            ? "border-teal-500 bg-teal-50 text-teal-700 shadow-sm" 
+                            : "border-gray-200 text-gray-600 hover:border-teal-200"
+                        )}
+                      >
+                        <CheckCircle className={cn("w-5 h-5", data.conditions.medications?.yes ? "text-teal-600" : "text-gray-300")} />
+                        <span className="font-medium text-sm">Yes, I'm taking medications</span>
+                      </button>
+                    </div>
+
+                    {data.conditions.medications?.yes && (
+                      <div className="w-full max-w-md text-left mb-6">
+                        <Label className="text-gray-700 font-medium mb-2 block">List your medications</Label>
+                        <TagInput 
+                          tags={data.conditions.medications.details ? data.conditions.medications.details.split(',').filter(Boolean) : []}
+                          setTags={(tags) => updateCondition('medications', 'details', tags.join(','))}
+                          placeholder="E.g. Metformin, Paracetamol"
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+
+                    <div className="mt-auto w-full pt-10">
+                      <Button onClick={nextStep} className="w-full bg-teal-600 hover:bg-teal-700 h-12 rounded-xl text-lg">
+                        Next <ArrowRight className="ml-2 w-5 h-5" />
+                      </Button>
+                      <button onClick={handleSkip} className="mt-4 text-teal-600 font-medium text-sm hover:underline">
+                        Skip for now
+                      </button>
+                    </div>
                   </div>
                 )}
-                <div className="flex items-center justify-between">
-                <Button 
-                   variant="outline" 
-                   onClick={prevStep} 
-                   disabled={currentStep === 1 || saving}
-                   className={cn(currentStep === 1 ? "invisible" : "")}
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Back
-                </Button>
-                
-                {currentStep < steps.length ? (
-                   <Button onClick={nextStep} className="px-8 shadow-sm">
-                     Continue <ArrowRight className="ml-2 h-4 w-4" />
-                   </Button>
-                ) : (
-                   <Button onClick={handleComplete} disabled={saving} className="px-8 bg-green-600 hover:bg-green-700 shadow-sm text-white">
-                     {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : <>Complete Setup <CheckCircle className="ml-2 h-4 w-4" /></>}
-                   </Button>
+
+                {/* Step 6: Past Surgeries */}
+                {currentStep === 6 && (
+                  <div className="flex flex-col h-full items-center text-center">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">5. Past Surgeries</h2>
+                    <p className="text-gray-500 mb-8">Have you had any surgeries in the past?</p>
+
+                    <div className="w-full max-w-md space-y-3 mb-8">
+                      <button
+                        onClick={() => setConditionYes('surgeries', false)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
+                          !data.conditions.surgeries?.yes 
+                            ? "border-teal-500 bg-teal-50 text-teal-700 shadow-sm" 
+                            : "border-gray-200 text-gray-600 hover:border-teal-200"
+                        )}
+                      >
+                        <CheckCircle className={cn("w-5 h-5", !data.conditions.surgeries?.yes ? "text-teal-600" : "text-gray-300")} />
+                        <span className="font-medium text-sm">No past surgeries</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => setConditionYes('surgeries', true)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
+                          data.conditions.surgeries?.yes 
+                            ? "border-teal-500 bg-teal-50 text-teal-700 shadow-sm" 
+                            : "border-gray-200 text-gray-600 hover:border-teal-200"
+                        )}
+                      >
+                        <CheckCircle className={cn("w-5 h-5", data.conditions.surgeries?.yes ? "text-teal-600" : "text-gray-300")} />
+                        <span className="font-medium text-sm">Yes, I have had surgeries</span>
+                      </button>
+                    </div>
+
+                    {data.conditions.surgeries?.yes && (
+                      <div className="w-full max-w-md text-left mb-6">
+                        <Label className="text-gray-700 font-medium mb-2 block">Please list your surgeries</Label>
+                        <TagInput 
+                          tags={data.conditions.surgeries.details ? data.conditions.surgeries.details.split(',').filter(Boolean) : []}
+                          setTags={(tags) => updateCondition('surgeries', 'details', tags.join(','))}
+                          placeholder="E.g. Appendectomy, Knee Surgery"
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+
+                    <div className="w-full max-w-md bg-teal-50 p-4 rounded-xl flex items-start gap-3 mt-auto mb-6">
+                      <ShieldCheck className="w-5 h-5 text-teal-600 mt-0.5 shrink-0" />
+                      <p className="text-sm text-teal-800">Include year if possible, this helps in better analysis.</p>
+                    </div>
+
+                    <div className="w-full">
+                      <Button onClick={nextStep} className="w-full bg-teal-600 hover:bg-teal-700 h-12 rounded-xl text-lg">
+                        Next <ArrowRight className="ml-2 w-5 h-5" />
+                      </Button>
+                      <button onClick={handleSkip} className="mt-4 text-teal-600 font-medium text-sm hover:underline">
+                        Skip for now
+                      </button>
+                    </div>
+                  </div>
                 )}
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        </AnimatePresence>
+
+                {/* Step 7: Family Medical History */}
+                {currentStep === 7 && (
+                  <div className="flex flex-col h-full items-center text-center">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">6. Family Medical History</h2>
+                    <p className="text-gray-500 mb-8">Do any of your close family members have these conditions?</p>
+
+                    <div className="w-full max-w-md grid grid-cols-3 gap-3 mb-6">
+                      {[
+                        { id: 'familyHistory_diabetes', label: 'Diabetes', icon: Droplets },
+                        { id: 'familyHistory_hypertension', label: 'Hypertension', icon: Activity },
+                        { id: 'familyHistory_heartDisease', label: 'Heart Disease', icon: HeartPulse },
+                        { id: 'familyHistory_cancer', label: 'Cancer', icon: Activity },
+                        { id: 'familyHistory_asthma', label: 'Asthma', icon: HeartPulse },
+                        { id: 'familyHistory_none', label: 'None', icon: CheckCircle },
+                      ].map((cond) => (
+                        <button
+                          key={cond.id}
+                          onClick={() => {
+                            if (cond.id === 'familyHistory_none') {
+                                // clear others if none selected
+                                setConditionYes('familyHistory_diabetes', false);
+                                setConditionYes('familyHistory_hypertension', false);
+                                setConditionYes('familyHistory_heartDisease', false);
+                                setConditionYes('familyHistory_cancer', false);
+                                setConditionYes('familyHistory_asthma', false);
+                            } else {
+                                toggleConditionYes(cond.id);
+                            }
+                          }}
+                          className={cn(
+                            "flex flex-col items-center justify-center gap-2 p-4 rounded-xl border transition-all text-center",
+                            (cond.id !== 'familyHistory_none' && data.conditions[cond.id]?.yes)
+                              ? "border-teal-500 bg-teal-50 text-teal-700 shadow-sm" 
+                              : "border-gray-200 text-gray-600 hover:border-teal-200"
+                          )}
+                        >
+                          <cond.icon className={cn("w-6 h-6", (cond.id !== 'familyHistory_none' && data.conditions[cond.id]?.yes) ? "text-teal-600" : "text-teal-400")} />
+                          <span className="font-medium text-xs">{cond.label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="w-full max-w-md text-left">
+                      <Label className="text-gray-500 text-sm mb-2 block">Anything else in family history?</Label>
+                      <Input 
+                        placeholder="Please specify" 
+                        value={data.conditions.familyHistory_other?.details || ""}
+                        onChange={(e) => updateCondition('familyHistory_other', 'details', e.target.value)}
+                        className="h-12 rounded-xl border-gray-200"
+                      />
+                    </div>
+
+                    <div className="mt-auto w-full pt-10">
+                      <Button onClick={nextStep} className="w-full bg-teal-600 hover:bg-teal-700 h-12 rounded-xl text-lg">
+                        Next <ArrowRight className="ml-2 w-5 h-5" />
+                      </Button>
+                      <button onClick={handleSkip} className="mt-4 text-teal-600 font-medium text-sm hover:underline">
+                        Skip for now
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 8: Review */}
+                {currentStep === 8 && (
+                  <div className="flex flex-col h-full items-center text-center">
+                    <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mb-4">
+                      <ShieldCheck className="w-8 h-8 text-teal-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">7. Review & Confirm</h2>
+                    <p className="text-gray-500 mb-8">Please review your information before we save it.</p>
+
+                    <div className="w-full max-w-md space-y-4 text-sm text-left bg-gray-50 p-6 rounded-xl border border-gray-100 mb-6">
+                      <div className="flex justify-between border-b pb-2">
+                        <span className="text-gray-500">Age</span>
+                        <span className="font-medium text-gray-900">{data.dob || "Not provided"}</span>
+                      </div>
+                      <div className="flex justify-between border-b pb-2">
+                        <span className="text-gray-500">Gender</span>
+                        <span className="font-medium text-gray-900">{data.gender || "Not provided"}</span>
+                      </div>
+                      <div className="flex justify-between border-b pb-2">
+                        <span className="text-gray-500">Conditions</span>
+                        <span className="font-medium text-gray-900 text-right">
+                          {[
+                            data.conditions.diabetes?.yes && 'Diabetes',
+                            data.conditions.hypertension?.yes && 'Hypertension',
+                            data.conditions.asthma?.yes && 'Asthma',
+                            data.conditions.thyroid?.yes && 'Thyroid',
+                            data.conditions.heartDisease?.yes && 'Heart Disease',
+                          ].filter(Boolean).join(', ') || "None"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-b pb-2">
+                        <span className="text-gray-500">Allergies</span>
+                        <span className="font-medium text-gray-900 text-right">{data.conditions.allergies?.details || "None"}</span>
+                      </div>
+                      <div className="flex justify-between border-b pb-2">
+                        <span className="text-gray-500">Medications</span>
+                        <span className="font-medium text-gray-900 text-right">{data.conditions.medications?.details || "None"}</span>
+                      </div>
+                      <div className="flex justify-between border-b pb-2">
+                        <span className="text-gray-500">Past Surgeries</span>
+                        <span className="font-medium text-gray-900 text-right">{data.conditions.surgeries?.details || "None"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Family History</span>
+                        <span className="font-medium text-gray-900 text-right">
+                          {[
+                            data.conditions.familyHistory_diabetes?.yes && 'Diabetes',
+                            data.conditions.familyHistory_hypertension?.yes && 'Hypertension',
+                            data.conditions.familyHistory_cancer?.yes && 'Cancer',
+                            data.conditions.familyHistory_heartDisease?.yes && 'Heart Disease',
+                            data.conditions.familyHistory_asthma?.yes && 'Asthma',
+                          ].filter(Boolean).join(', ') || "None"}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {saveError && (
+                      <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm mb-4 w-full max-w-md">
+                        {saveError}
+                      </div>
+                    )}
+
+                    <div className="mt-auto w-full">
+                      <Button 
+                        onClick={handleComplete} 
+                        disabled={saving}
+                        className="w-full bg-teal-600 hover:bg-teal-700 h-12 rounded-xl text-lg"
+                      >
+                        {saving ? "Saving..." : "Save & Continue"} <ArrowRight className="ml-2 w-5 h-5" />
+                      </Button>
+                      <div className="mt-4 flex justify-center items-center text-xs text-gray-500 gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-teal-500" /> Your information is safe with us
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
+      
+      {/* Footer Info Section */}
+      <div className="w-full max-w-4xl mt-12 grid grid-cols-1 md:grid-cols-5 gap-6 text-sm">
+        <div className="col-span-1 md:col-span-1 font-medium text-gray-700 pt-1">
+          Why we ask these questions?
+        </div>
+        <div className="col-span-1 md:col-span-4 grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="flex gap-3 items-start">
+             <div className="bg-teal-50 p-2 rounded-full text-teal-600 shrink-0">
+               <User className="w-5 h-5" />
+             </div>
+             <div>
+               <h4 className="font-semibold text-gray-900">Personalized Care</h4>
+               <p className="text-gray-500 text-xs mt-1">Helps provide accurate diagnosis and treatment</p>
+             </div>
+          </div>
+          <div className="flex gap-3 items-start">
+             <div className="bg-teal-50 p-2 rounded-full text-teal-600 shrink-0">
+               <ShieldCheck className="w-5 h-5" />
+             </div>
+             <div>
+               <h4 className="font-semibold text-gray-900">Safe Treatments</h4>
+               <p className="text-gray-500 text-xs mt-1">Helps avoid drug interactions and allergic reactions</p>
+             </div>
+          </div>
+          <div className="flex gap-3 items-start">
+             <div className="bg-teal-50 p-2 rounded-full text-teal-600 shrink-0">
+               <Activity className="w-5 h-5" />
+             </div>
+             <div>
+               <h4 className="font-semibold text-gray-900">Better Insights</h4>
+               <p className="text-gray-500 text-xs mt-1">Understanding your history leads to better outcomes</p>
+             </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
