@@ -772,6 +772,16 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
       {/* Input */}
       <div className="shrink-0 bg-white/90 backdrop-blur-md p-3 sm:p-4 pb-3 sm:pb-4 border-t border-stone-100 z-20">
         <div className="mx-auto max-w-3xl relative">
+          {/* Voice conversation widget — docked above the input bar */}
+          <AnimatePresence>
+            {isVoiceModeOpen && (
+              <VoiceMode
+                onClose={() => setIsVoiceModeOpen(false)}
+                onSendMessage={sendVoiceMessage}
+              />
+            )}
+          </AnimatePresence>
+
           {!isGuest && fileName && (
             <div className="mb-2 inline-flex items-center gap-1.5 bg-primary-50 pl-2.5 pr-1.5 py-1 rounded-full border border-primary-100">
               <FileText className="w-3.5 h-3.5 text-primary-600" />
@@ -881,15 +891,6 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
         </div>
       </div>
 
-      {/* Voice conversation overlay */}
-      <AnimatePresence>
-        {isVoiceModeOpen && (
-          <VoiceMode
-            onClose={() => setIsVoiceModeOpen(false)}
-            onSendMessage={sendVoiceMessage}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

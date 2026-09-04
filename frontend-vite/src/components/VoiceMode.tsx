@@ -7,9 +7,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Mic, Loader2, Volume2, MicOff } from "lucide-react";
+import { X } from "lucide-react";
 import { transcribeAudio, synthesizeSpeech } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 type VoiceState = "idle" | "listening" | "processing" | "speaking";
 
@@ -274,88 +273,84 @@ export function VoiceMode({ onClose, onSendMessage }: VoiceModeProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[80] flex flex-col items-center justify-between bg-gradient-to-b from-teal-950 via-stone-950 to-stone-950 text-white"
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 10, scale: 0.98 }}
+      transition={{ duration: 0.18 }}
+      className="mx-auto mb-2.5 flex w-full max-w-sm items-center gap-3.5 rounded-2xl border border-stone-200 bg-white/95 backdrop-blur-md p-2.5 pr-1.5 shadow-cardHover"
       role="dialog"
-      aria-label="Voice conversation mode"
+      aria-label="Voice conversation"
     >
-      {/* Close */}
-      <div className="w-full flex items-center justify-between p-5">
-        <div className="flex items-center gap-2 text-xs font-semibold text-teal-200/80 uppercase tracking-widest">
-          <Volume2 className="h-4 w-4" />
-          Voice mode
-        </div>
-        <button
-          onClick={onClose}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-          aria-label="Exit voice mode"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-
       {/* Orb */}
-      <div className="flex flex-col items-center gap-8 px-6">
-        <button onClick={handleOrbTap} className="relative outline-none" aria-label={statusLabel}>
-          {/* Ambient glow */}
-          <motion.div
-            className="absolute inset-0 rounded-full bg-teal-400/25 blur-3xl"
-            animate={{ scale: state === "speaking" ? [1.1, 1.5, 1.1] : [1, 1.25, 1] }}
-            transition={{ duration: state === "speaking" ? 1.2 : 2.4, repeat: Infinity, ease: "easeInOut" }}
-          />
-          {/* Pulse rings while listening */}
-          {state === "listening" && (
-            <>
-              <motion.span
-                className="absolute inset-0 rounded-full border-2 border-teal-300/40"
-                animate={{ scale: [1, 1.6], opacity: [0.7, 0] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut" }}
-              />
-              <motion.span
-                className="absolute inset-0 rounded-full border-2 border-teal-300/30"
-                animate={{ scale: [1, 1.6], opacity: [0.7, 0] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut", delay: 0.5 }}
-              />
-            </>
-          )}
-          {/* Core orb */}
-          <motion.div
-            animate={{ scale: orbScale }}
-            transition={{ type: "spring", stiffness: 300, damping: 22 }}
-            className={cn(
-              "relative flex h-40 w-40 sm:h-48 sm:w-48 items-center justify-center rounded-full",
-              "bg-gradient-to-br from-teal-300 via-teal-500 to-emerald-700 shadow-[0_0_80px_-10px_rgba(45,212,191,0.55)]"
-            )}
-          >
-            {state === "processing" ? (
-              <Loader2 className="h-12 w-12 text-white animate-spin" />
-            ) : state === "speaking" ? (
-              <div className="flex items-end gap-1.5 h-10">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <motion.span
-                    key={i}
-                    className="w-2 rounded-full bg-white"
-                    animate={{ height: ["30%", "100%", "45%", "85%", "30%"] }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: i * 0.12 }}
-                  />
-                ))}
-              </div>
-            ) : state === "listening" ? (
-              <Mic className="h-12 w-12 text-white" />
-            ) : (
-              <MicOff className="h-12 w-12 text-white/80" />
-            )}
-          </motion.div>
-        </button>
+      <button onClick={handleOrbTap} className="relative shrink-0 outline-none" aria-label={statusLabel}>
+        {/* Soft ambient halo */}
+        <motion.div
+          className="absolute -inset-2 rounded-full bg-teal-300/40 blur-lg"
+          animate={{
+            opacity: state === "speaking" ? [0.5, 0.9, 0.5] : [0.3, 0.55, 0.3],
+            scale: state === "speaking" ? [1, 1.18, 1] : [1, 1.08, 1],
+          }}
+          transition={{ duration: state === "speaking" ? 1.1 : 2.8, repeat: Infinity, ease: "easeInOut" }}
+        />
 
-        <p className="text-sm font-medium text-teal-100/90">{statusLabel}</p>
-        {error && <p className="text-xs text-red-300 max-w-xs text-center">{error}</p>}
+        {/* Core orb — small, soft cloudy gradient sphere */}
+        <motion.div
+          animate={{
+            scale:
+              state === "listening" ? orbScale
+              : state === "speaking" ? [1, 1.07, 0.97, 1.05, 1]
+              : 1,
+          }}
+          transition={
+            state === "speaking"
+              ? { duration: 1.3, repeat: Infinity, ease: "easeInOut" }
+              : { type: "spring", stiffness: 300, damping: 22 }
+          }
+          className="relative h-12 w-12 rounded-full overflow-hidden shadow-[0_0_20px_-2px_rgba(45,212,191,0.55)]"
+          style={{
+            background:
+              "radial-gradient(circle at 35% 30%, #f0fdfa 0%, #99f6e4 28%, #2dd4bf 62%, #0f766e 100%)",
+          }}
+        >
+          {/* Drifting cloud highlight */}
+          <motion.div
+            className="absolute h-[130%] w-[130%] rounded-full bg-white/60 blur-md"
+            animate={{
+              x: ["-25%", "5%", "-15%", "-25%"],
+              y: ["-30%", "-5%", "-25%", "-30%"],
+            }}
+            transition={{ duration: state === "processing" ? 2 : 5, repeat: Infinity, ease: "easeInOut" }}
+          />
+          {/* Deep tint drifting opposite for depth */}
+          <motion.div
+            className="absolute h-[110%] w-[110%] rounded-full bg-teal-700/50 blur-md"
+            animate={{
+              x: ["45%", "25%", "40%", "45%"],
+              y: ["50%", "30%", "45%", "50%"],
+            }}
+            transition={{ duration: state === "processing" ? 2.4 : 6, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </motion.div>
+      </button>
+
+      {/* Status */}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-semibold text-content-primary">{statusLabel}</p>
+        {error ? (
+          <p className="mt-0.5 text-[11px] leading-snug text-red-500 line-clamp-2">{error}</p>
+        ) : (
+          <p className="text-[11px] text-content-tertiary">Voice conversation</p>
+        )}
       </div>
 
-      {/* Bottom spacer keeps the orb vertically centered */}
-      <div className="pb-10" />
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-content-primary transition-colors"
+        aria-label="Exit voice mode"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </motion.div>
   );
 }
