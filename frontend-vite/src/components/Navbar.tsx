@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, MessageCircle, Compass } from "lucide-react";
+import { Menu, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/Logo";
 import { getCurrentUser, type User } from "@/lib/auth";
@@ -25,22 +25,12 @@ export function Navbar() {
 
         <nav className="hidden items-center gap-3 md:flex" aria-label="Main">
           {user ? (
-            <>
-              <Link
-                to="/dashboard/anatomy"
-                className="rounded-button inline-flex h-10 items-center justify-center gap-2 px-4 text-sm font-semibold text-content-secondary transition-all hover:text-primary-600 hover:bg-surface-muted"
-              >
-                <Compass className="h-4 w-4 text-rose-500" />
-                <span>Body Atlas</span>
-                <span className="text-[10px] text-rose-600 font-bold bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200/60">3D</span>
-              </Link>
-              <Link
-                to="/dashboard"
-                className="rounded-button inline-flex h-10 items-center justify-center bg-primary-500 px-5 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-600 active:scale-[0.98]"
-              >
-                Open Dashboard
-              </Link>
-            </>
+            <Link
+              to="/dashboard"
+              className="rounded-button inline-flex h-10 items-center justify-center bg-primary-500 px-5 text-sm font-semibold text-white shadow-soft transition-all hover:bg-primary-600 active:scale-[0.98]"
+            >
+              Open Dashboard
+            </Link>
           ) : (
             <>
               <Link
@@ -82,22 +72,9 @@ export function Navbar() {
           >
             <nav className="flex flex-col gap-1" aria-label="Mobile">
               {user ? (
-                <>
-                  <Link
-                    to="/dashboard/anatomy"
-                    className="rounded-button flex items-center justify-between px-4 py-3 text-sm font-medium text-content-primary hover:bg-surface-muted"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Compass className="h-4 w-4 text-rose-500" />
-                      <span>Body Atlas (3D Anatomy)</span>
-                    </div>
-                    <span className="text-[10px] text-rose-600 font-bold bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200/60">3D</span>
-                  </Link>
-                  <Link to="/dashboard" className="rounded-button px-4 py-3 text-sm font-medium text-content-primary hover:bg-surface-muted" onClick={() => setMobileOpen(false)}>
-                    Open Dashboard
-                  </Link>
-                </>
+                <Link to="/dashboard" className="rounded-button px-4 py-3 text-sm font-medium text-content-primary hover:bg-surface-muted" onClick={() => setMobileOpen(false)}>
+                  Open Dashboard
+                </Link>
               ) : (
                 <>
                   <Link to="/chat" className="rounded-button flex items-center gap-2 bg-primary-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-primary-600" onClick={() => setMobileOpen(false)}>

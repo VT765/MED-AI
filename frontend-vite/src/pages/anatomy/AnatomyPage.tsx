@@ -25,6 +25,7 @@ import { HeartBrainComparisonModal } from "@/components/anatomy/HeartBrainCompar
 import { CirculationAnimationModal } from "@/components/anatomy/CirculationAnimationModal";
 import { ClinicalNotesModal } from "@/components/anatomy/ClinicalNotesModal";
 import { AiAnatomyAssistant } from "@/components/anatomy/AiAnatomyAssistant";
+import { FullBodyAnatomyViewer } from "@/components/anatomy/FullBodyAnatomyViewer";
 import { useViewerStore, type NavTab } from "@/stores/useViewerStore";
 
 export function AnatomyPage() {
@@ -34,6 +35,7 @@ export function AnatomyPage() {
   const searchQuery = useViewerStore((s) => s.searchQuery);
   const setSearchQuery = useViewerStore((s) => s.setSearchQuery);
 
+  const [viewMode, setViewMode] = useState<"fullbody" | "specimen">("fullbody");
   const [isMobileLeftOpen, setIsMobileLeftOpen] = useState(false);
   const [isMobileRightOpen, setIsMobileRightOpen] = useState(false);
 
@@ -50,19 +52,35 @@ export function AnatomyPage() {
     <div className="h-full w-full flex flex-col overflow-hidden select-none font-sans bg-surface text-content-primary">
       {/* ── Top Sub-Navigation Bar ──────────────────────────────────── */}
       <header className="h-14 px-4 md:px-6 flex items-center justify-between flex-shrink-0 z-30 border-b border-stone-200 bg-surface-elevated shadow-xs">
-        {/* Left: Section Badge + Title */}
+        {/* Left: Section Badge + Title + Mode Switcher */}
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-primary-50 border border-primary-200 flex items-center justify-center text-primary-700 shadow-xs">
             <Compass className="w-4 h-4 text-primary-600" />
           </div>
 
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-sm font-bold tracking-tight text-content-primary">
-              3D Specimen Lab
-            </h2>
-            <span className="text-xs text-content-tertiary hidden xl:inline">
-              Interactive Clinical Dissection
-            </span>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-xl bg-stone-100 p-0.5 border border-stone-200">
+              <button
+                onClick={() => setViewMode("fullbody")}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                  viewMode === "fullbody"
+                    ? "bg-white text-primary-700 shadow-xs"
+                    : "text-stone-500 hover:text-stone-900"
+                }`}
+              >
+                Full Body 3D
+              </button>
+              <button
+                onClick={() => setViewMode("specimen")}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                  viewMode === "specimen"
+                    ? "bg-white text-primary-700 shadow-xs"
+                    : "text-stone-500 hover:text-stone-900"
+                }`}
+              >
+                Specimen Lab
+              </button>
+            </div>
           </div>
         </div>
 
@@ -121,34 +139,40 @@ export function AnatomyPage() {
         </div>
       </header>
 
-      {/* ── Main 3-Column Layout ────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Column: Organ Library Sidebar */}
-        <div
-          className={`
-            ${isMobileLeftOpen ? "absolute inset-y-0 left-0 z-40 flex shadow-2xl" : "hidden md:flex"}
-            flex-shrink-0 h-full
-          `}
-        >
-          <OrganSidebar />
+      {/* ── Main Viewport Content ──────────────────────────────────── */}
+      {viewMode === "fullbody" ? (
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-surface">
+          <FullBodyAnatomyViewer />
         </div>
+      ) : (
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* Left Column: Organ Library Sidebar */}
+          <div
+            className={`
+              ${isMobileLeftOpen ? "absolute inset-y-0 left-0 z-40 flex shadow-2xl" : "hidden md:flex"}
+              flex-shrink-0 h-full
+            `}
+          >
+            <OrganSidebar />
+          </div>
 
-        {/* Middle Column: 3D Viewport */}
-        <main className="flex-1 relative overflow-hidden">
-          <CanvasContainer />
-          <ViewerToolbar />
-        </main>
+          {/* Middle Column: 3D Viewport */}
+          <main className="flex-1 relative overflow-hidden">
+            <CanvasContainer />
+            <ViewerToolbar />
+          </main>
 
-        {/* Right Column: Specimen Details Panel */}
-        <div
-          className={`
-            ${isMobileRightOpen ? "absolute inset-y-0 right-0 z-40 flex shadow-2xl" : "hidden lg:flex"}
-            flex-shrink-0 h-full
-          `}
-        >
-          <DetailsPanel />
+          {/* Right Column: Specimen Details Panel */}
+          <div
+            className={`
+              ${isMobileRightOpen ? "absolute inset-y-0 right-0 z-40 flex shadow-2xl" : "hidden lg:flex"}
+              flex-shrink-0 h-full
+            `}
+          >
+            <DetailsPanel />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Enriched Specialty Modals ───────────────────────────────── */}
       <MicroscopicViewModal />

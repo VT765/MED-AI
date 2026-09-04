@@ -16,11 +16,13 @@ import {
   UploadCloud,
   FileSearch,
   Database,
-  Compass
+  Compass,
+  Bot
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { getCurrentUser } from "@/lib/auth";
+import { AiRobotShowcase } from "@/components/ai/AiRobotShowcase";
 
 
 export function HomePage() {
@@ -77,29 +79,38 @@ export function HomePage() {
               </motion.div>
             )}
 
-            {/* Subtle Visual Preview */}
-            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }} className="mx-auto mt-16 max-w-3xl rounded-card border border-stone-200 bg-surface-elevated shadow-cardHover overflow-hidden flex flex-col items-start p-4 pb-6 relative">
-                <div className="w-full flex items-center justify-between border-b border-stone-100 pb-3 mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full bg-red-400"></div>
-                    <div className="h-3 w-3 rounded-full bg-yellow-400"></div>
-                    <div className="h-3 w-3 rounded-full bg-green-400"></div>
-                  </div>
-                  <div className="text-xs font-medium text-content-tertiary">Med-AI Assistant</div>
-                  <div className="w-10"></div>
+            {/* Hero Mockup */}
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.32 }}
+              className="relative mx-auto mt-12 max-w-2xl rounded-2xl border border-stone-200 bg-white p-4 shadow-xl sm:p-6"
+            >
+              <div className="w-full flex items-center justify-between border-b border-stone-100 pb-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full bg-red-400"></div>
+                  <div className="h-3 w-3 rounded-full bg-yellow-400"></div>
+                  <div className="h-3 w-3 rounded-full bg-green-400"></div>
                 </div>
-                <div className="flex w-full flex-col gap-4 px-2">
-                  <div className="self-end rounded-2xl rounded-tr-none bg-primary-100 px-4 py-3 text-sm text-primary-900 max-w-[80%]">
-                    Can you explain what my recent CBC blood test results mean?
+                <div className="text-xs font-medium text-content-tertiary">Med-AI Assistant</div>
+                <div className="w-10"></div>
+              </div>
+              <div className="flex w-full flex-col gap-4 px-2 text-left">
+                <div className="self-end rounded-2xl rounded-tr-none bg-primary-100 px-4 py-3 text-sm text-primary-900 max-w-[80%]">
+                  Can you explain what my recent CBC blood test results mean?
+                </div>
+                <div className="self-start rounded-2xl rounded-tl-none border border-stone-200 bg-surface px-4 py-3 text-sm text-content-secondary/90 max-w-[80%] flex gap-3">
+                  <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+                    <Sparkles className="h-3 w-3" />
                   </div>
-                  <div className="self-start rounded-2xl rounded-tl-none border border-stone-200 bg-surface px-4 py-3 text-sm text-content-secondary/90 max-w-[80%] flex gap-3">
-                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-600"><Sparkles className="h-3 w-3" /></div>
-                    <div>
-                      <p className="font-medium text-content-primary mb-1">I can help with that!</p>
-                      <p>Based on your uploaded Complete Blood Count (CBC) report, your hemoglobin levels are slightly lower than the normal range, which might indicate mild anemia. However, your white blood cell count is perfectly normal...</p>
-                    </div>
+                  <div>
+                    <p className="font-medium text-content-primary mb-1">I can help with that!</p>
+                    <p className="leading-relaxed">
+                      Based on your uploaded Complete Blood Count (CBC) report, your hemoglobin levels are slightly lower than the normal range, which might indicate mild anemia. However, your white blood cell count is perfectly normal...
+                    </p>
                   </div>
                 </div>
+              </div>
             </motion.div>
           </div>
         </section>
@@ -123,6 +134,25 @@ export function HomePage() {
               <FileSearch className="h-5 w-5 text-primary-600" aria-hidden />
               <span className="text-sm font-medium">Medical Report Analysis</span>
             </div>
+          </div>
+        </section>
+
+        {/* 2B. AI ROBOT MEDICAL ASSISTANT SECTION */}
+        <section className="border-t border-stone-200 bg-surface-elevated px-4 py-16 lg:py-20">
+          <div className="mx-auto max-w-5xl">
+            <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-10">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-4 py-1 text-xs font-semibold text-primary-700 mb-2.5 shadow-xs">
+                <Bot className="h-3.5 w-3.5" />
+                <span>Autonomous Medical Intelligence</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-content-primary">
+                MedAI Autonomous Clinical Companion
+              </h2>
+              <p className="mx-auto mt-2.5 max-w-2xl text-sm sm:text-base text-content-secondary leading-relaxed">
+                Powered by clinical reasoning, real-time bio-signal frequency monitoring, and multimodal pathology OCR.
+              </p>
+            </motion.div>
+            <AiRobotShowcase />
           </div>
         </section>
 
@@ -163,19 +193,19 @@ export function HomePage() {
                   Upload reports and receive simple, AI-generated explanations of important findings, complex medical terminology, and key metrics.
                 </p>
               </motion.div>
-              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="group rounded-card border border-rose-200 bg-surface-elevated p-6 shadow-soft transition-all hover:border-rose-400 hover:shadow-cardHover relative overflow-hidden">
+              <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }} className="group rounded-card border border-primary-200 bg-surface-elevated p-6 shadow-soft transition-all hover:border-primary-400 hover:shadow-cardHover relative overflow-hidden">
                 <div className="flex items-center justify-between">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-rose-100 text-rose-600 transition-colors group-hover:bg-rose-200">
+                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100 text-primary-600 transition-colors group-hover:bg-primary-200">
                     <Compass className="h-6 w-6" aria-hidden />
                   </span>
-                  <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">Interactive 3D</span>
+                  <span className="text-[10px] font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full border border-primary-200">Interactive 3D</span>
                 </div>
                 <h3 className="mt-6 text-lg font-semibold text-content-primary flex items-center justify-between">
                   <span>3D Body Atlas</span>
-                  <ArrowRight className="h-4 w-4 text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRight className="h-4 w-4 text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </h3>
                 <p className="mt-2.5 text-sm leading-relaxed text-content-secondary/90">
-                  Explore 3D interactive organs, biological systems, anatomical layers, and guided medical lessons.
+                  Explore full-body 3D human anatomy, skeletal bones, visceral organs, and clinical pathology layers.
                 </p>
                 <Link to={user ? "/dashboard/anatomy" : "/auth/login"} className="absolute inset-0 z-10" aria-label="Open 3D Body Atlas" />
               </motion.div>
