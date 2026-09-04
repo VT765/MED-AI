@@ -31,7 +31,11 @@ import {
   type AnatomicalSystem,
 } from "@/data/fullBodyAnatomyData";
 
-export function FullBodyAnatomyViewer() {
+interface FullBodyAnatomyViewerProps {
+  onSwitchToSpecimen?: (organId?: string) => void;
+}
+
+export function FullBodyAnatomyViewer({ onSwitchToSpecimen }: FullBodyAnatomyViewerProps = {}) {
   const [selectedStructure, setSelectedStructure] = useState<AnatomicalStructure | null>(
     FULL_BODY_STRUCTURES[1] // Heart default
   );
@@ -782,13 +786,39 @@ export function FullBodyAnatomyViewer() {
                   <span>Ask MedAI About This Structure</span>
                 </Link>
 
-                <Link
-                  to="/dashboard/anatomy"
-                  className="w-full flex items-center justify-center gap-1.5 rounded-button border border-stone-200 bg-white py-2 text-xs font-semibold text-content-primary hover:bg-stone-50 transition-all shadow-xs"
-                >
-                  <Compass className="h-3.5 w-3.5 text-primary-600" />
-                  <span>Deep Dive in 3D Specimen Lab</span>
-                </Link>
+                {onSwitchToSpecimen ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const organMap: Record<string, string> = {
+                        heart: "heart",
+                        brain: "brain",
+                        lungs: "lungs",
+                        liver: "liver",
+                        kidney_left: "kidneys",
+                        kidney_right: "kidneys",
+                        stomach: "intestine",
+                        pancreas: "pancreas",
+                        eye_retina: "eye",
+                        skin_dermis: "skin",
+                      };
+                      const mapped = selectedStructure ? organMap[selectedStructure.id] || "heart" : "heart";
+                      onSwitchToSpecimen(mapped);
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 rounded-button border border-stone-200 bg-white py-2 text-xs font-semibold text-content-primary hover:bg-stone-50 transition-all shadow-xs"
+                  >
+                    <Compass className="h-3.5 w-3.5 text-primary-600" />
+                    <span>Deep Dive in 3D Specimen Lab</span>
+                  </button>
+                ) : (
+                  <Link
+                    to="/dashboard/anatomy"
+                    className="w-full flex items-center justify-center gap-1.5 rounded-button border border-stone-200 bg-white py-2 text-xs font-semibold text-content-primary hover:bg-stone-50 transition-all shadow-xs"
+                  >
+                    <Compass className="h-3.5 w-3.5 text-primary-600" />
+                    <span>Deep Dive in 3D Specimen Lab</span>
+                  </Link>
+                )}
               </div>
             </motion.div>
           )}

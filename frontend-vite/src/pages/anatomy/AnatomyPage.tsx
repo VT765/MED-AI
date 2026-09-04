@@ -36,8 +36,10 @@ export function AnatomyPage() {
   const searchQuery = useViewerStore((s) => s.searchQuery);
   const setSearchQuery = useViewerStore((s) => s.setSearchQuery);
   const isDetailsExpanded = useViewerStore((s) => s.isDetailsExpanded);
+  const setActiveOrgan = useViewerStore((s) => s.setActiveOrgan);
 
-  const [viewMode, setViewMode] = useState<"fullbody" | "specimen">("fullbody");
+  // Default to Specimen Lab whenever entering Body Atlas from anywhere
+  const [viewMode, setViewMode] = useState<"fullbody" | "specimen">("specimen");
   const [isMobileLeftOpen, setIsMobileLeftOpen] = useState(false);
   const [isMobileRightOpen, setIsMobileRightOpen] = useState(false);
 
@@ -61,26 +63,30 @@ export function AnatomyPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex rounded-xl bg-stone-100 p-0.5 border border-stone-200">
+            <div className="flex rounded-xl bg-stone-100 p-0.5 border border-stone-200 shadow-inner">
               <button
-                onClick={() => setViewMode("fullbody")}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                  viewMode === "fullbody"
-                    ? "bg-white text-primary-700 shadow-xs"
+                type="button"
+                onClick={() => setViewMode("specimen")}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                  viewMode === "specimen"
+                    ? "bg-white text-primary-700 shadow-xs ring-1 ring-stone-200/60"
                     : "text-stone-500 hover:text-stone-900"
                 }`}
               >
-                Full Body 3D
+                <span>🔬</span>
+                <span>Specimen Lab</span>
               </button>
               <button
-                onClick={() => setViewMode("specimen")}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                  viewMode === "specimen"
-                    ? "bg-white text-primary-700 shadow-xs"
+                type="button"
+                onClick={() => setViewMode("fullbody")}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                  viewMode === "fullbody"
+                    ? "bg-white text-primary-700 shadow-xs ring-1 ring-stone-200/60"
                     : "text-stone-500 hover:text-stone-900"
                 }`}
               >
-                Specimen Lab
+                <span>🧬</span>
+                <span>Full Body 3D</span>
               </button>
             </div>
           </div>
@@ -144,7 +150,14 @@ export function AnatomyPage() {
       {/* ── Main Viewport Content ──────────────────────────────────── */}
       {viewMode === "fullbody" ? (
         <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-surface">
-          <FullBodyAnatomyViewer />
+          <FullBodyAnatomyViewer
+            onSwitchToSpecimen={(organId) => {
+              if (organId) {
+                setActiveOrgan(organId);
+              }
+              setViewMode("specimen");
+            }}
+          />
         </div>
       ) : (
         <div className="flex-1 flex overflow-hidden relative">
