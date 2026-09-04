@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope, Mic, Square, ArrowDown, X } from "lucide-react";
+import { Send, Bot, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope, Mic, Square, ArrowDown, X, AudioLines } from "lucide-react";
+import { VoiceMode } from "@/components/VoiceMode";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
@@ -158,6 +159,7 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [isVoiceModeOpen, setIsVoiceModeOpen] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [levels, setLevels] = useState<number[]>(() => new Array(WAVEFORM_BARS).fill(0.08));
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -472,6 +474,24 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
   }, [input, isLoading, sessionId, extractedDocText, isGuest]);
+
+  // Voice mode: send a spoken turn through the chat, mirror it into the
+  // transcript, and return the reply text for TTS playback.
+  const sendVoiceMessage = useCallback(async (text: string): Promise<string> => {
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(), role: "user", content: text, timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    const response = isGuest
+      ? await sendGuestChatMessage(text, sessionId)
+      : await sendChatMessage(text, sessionId);
+    if (response.session_id) setSessionId(response.session_id);
+    setMessages((prev) => [...prev, {
+      id: (Date.now() + 1).toString(), role: "assistant",
+      content: response.reply, timestamp: new Date(response.timestamp),
+    }]);
+    return response.reply;
+  }, [isGuest, sessionId]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -820,6 +840,16 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
                 disabled={isLoading || isUploading || isTranscribing} aria-invalid={!!inputError} rows={1} />
             )}
 
+            {/* Voice conversation mode — talk and hear replies */}
+            <Button type="button" variant="ghost" size="icon"
+              onClick={() => setIsVoiceModeOpen(true)}
+              disabled={isLoading || isUploading || isTranscribing || isRecording}
+              aria-label="Start voice conversation"
+              title="Voice conversation — speak and hear replies"
+              className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-xl mb-0.5 sm:mb-1 text-gray-500 hover:bg-primary-50 hover:text-primary-600 transition-colors flex items-center justify-center p-0">
+              <AudioLines className="h-4 w-4 sm:h-5 sm:w-5" />
+            </Button>
+
             {/* Voice input — record then transcribe */}
             <Button type="button" variant="ghost" size="icon" onClick={toggleRecording}
               disabled={isLoading || isUploading || isTranscribing}
@@ -850,6 +880,16 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
           </p>
         </div>
       </div>
+
+      {/* Voice conversation overlay */}
+      <AnimatePresence>
+        {isVoiceModeOpen && (
+          <VoiceMode
+            onClose={() => setIsVoiceModeOpen(false)}
+            onSendMessage={sendVoiceMessage}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

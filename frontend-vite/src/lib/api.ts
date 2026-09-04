@@ -125,6 +125,19 @@ export async function transcribeAudio(blob: Blob): Promise<{ text: string }> {
   return data as { text: string };
 }
 
+export async function synthesizeSpeech(text: string): Promise<Blob> {
+  const res = await fetch(apiUrl("/api/chat/tts"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || data.message || "Voice synthesis failed");
+  }
+  return res.blob();
+}
+
 // ── Guest Chat API (no auth required) ───────────────────────
 
 export async function sendGuestChatMessage(
