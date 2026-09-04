@@ -3,7 +3,6 @@ import {
   CheckCircle2,
   BrainCircuit,
   RefreshCw,
-  HeartPulse,
   FileText,
   AlertTriangle,
   Stethoscope,
@@ -11,7 +10,6 @@ import {
   ClipboardCheck,
   ChevronRight,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { ReportAnalysisResponse } from "@/types/report";
 import { cn } from "@/lib/utils";
@@ -62,13 +60,7 @@ export function ReportResult({ analysis, onRemove }: ReportResultProps) {
           </h3>
         </div>
         <div className="flex gap-2">
-          <Link
-            to="/dashboard/appointment"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-primary-700 transition-colors"
-          >
-            <HeartPulse className="h-3.5 w-3.5" />
-            Consult doctor
-          </Link>
+
           <Button
             variant="outline"
             size="sm"
