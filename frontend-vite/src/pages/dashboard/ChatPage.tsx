@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatUI } from "@/components/ChatUI";
-import { Plus, Search, MessageSquare, History, X, Loader2, Trash2 } from "lucide-react";
+import { Search, MessageSquare, X, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getChatSessions, deleteChatSession, type ChatSessionSummary } from "@/lib/api";
+import { useChatUiStore } from "@/stores/useChatUiStore";
 
 function groupSessionsByDate(sessions: ChatSessionSummary[]): Record<string, ChatSessionSummary[]> {
   const now = new Date();
@@ -29,11 +30,18 @@ function groupSessionsByDate(sessions: ChatSessionSummary[]): Record<string, Cha
 }
 
 export function ChatPage() {
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyOpen = useChatUiStore((s) => s.historyOpen);
+  const setHistoryOpen = useChatUiStore((s) => s.setHistoryOpen);
   const [searchQuery, setSearchQuery] = useState("");
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+
+  const handleSelectSession = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    setHistoryOpen(false);
+  };
 
   const handleDelete = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
@@ -119,7 +127,11 @@ export function ChatPage() {
                 {groupedSessions[group].map((session) => (
                   <div
                     key={session.session_id}
-                    className="group w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-left text-content-secondary hover:bg-surface-muted hover:text-content-primary transition-colors"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleSelectSession(session.session_id)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleSelectSession(session.session_id); }}
+                    className="group w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-left text-content-secondary hover:bg-surface-muted hover:text-content-primary transition-colors cursor-pointer"
                   >
                     <MessageSquare className="h-4 w-4 shrink-0 text-content-tertiary" />
                     <div className="flex flex-col min-w-0 flex-1">
@@ -152,27 +164,6 @@ export function ChatPage() {
 
   return (
     <div className="flex flex-col h-full w-full relative overflow-hidden bg-surface">
-      {/* Top Header */}
-      <header className="shrink-0 h-14 border-b border-stone-200 bg-surface/80 backdrop-blur-md px-4 flex items-center justify-between z-30">
-        <div className="flex items-center gap-3">
-          <h2 className="font-semibold text-content-primary hidden sm:block">Chat with AI Doctor</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="hidden sm:flex gap-2 rounded-xl">
-            <Plus className="h-4 w-4" />
-            <span>New Chat</span>
-          </Button>
-          <Button variant="outline" size="icon" className="sm:hidden rounded-xl">
-            <Plus className="h-4 w-4" />
-          </Button>
-          
-          <Button variant="secondary" size="sm" onClick={() => setHistoryOpen(true)} className="gap-2 rounded-xl">
-            <History className="h-4 w-4" />
-            <span className="hidden sm:inline">History</span>
-          </Button>
-        </div>
-      </header>
-
       {/* History Overlay */}
       <AnimatePresence>
         {historyOpen && (
@@ -189,14 +180,9 @@ export function ChatPage() {
         )}
       </AnimatePresence>
 
-      {/* Main Content */}
-      <div className="flex-1 w-full max-w-5xl mx-auto p-2 sm:p-4 flex flex-col min-h-0 overflow-hidden">
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="shrink-0 mb-2 sm:mb-3 px-2 sm:hidden">
-          <h2 className="text-xl font-bold text-content-primary">Chat with AI Doctor</h2>
-        </motion.div>
-        <div className="flex-1 w-full relative min-h-0 overflow-hidden">
-          <ChatUI />
-        </div>
+      {/* Main Content — full-bleed chat with its own header */}
+      <div className="flex-1 w-full flex flex-col min-h-0 overflow-hidden">
+        <ChatUI requestedSessionId={selectedSessionId} />
       </div>
     </div>
   );

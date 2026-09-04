@@ -1,12 +1,10 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Upload,
   FileText,
   X,
   CheckCircle2,
   ShieldAlert,
-  HeartPulse,
   BrainCircuit,
   Microscope,
   RefreshCw,
@@ -55,7 +53,7 @@ export function UploadCard() {
     if (isAnalyzing) {
       interval = setInterval(() => {
         setScanStep((prev) => (prev < SCANNING_STEPS.length - 1 ? prev + 1 : prev));
-      }, 800);
+      }, 1400);
     } else {
       setScanStep(0);
     }
@@ -91,10 +89,15 @@ export function UploadCard() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // Keep the scan animation on screen for at least this long, even if the
+  // backend responds faster — otherwise the animation flashes and vanishes.
+  const MIN_SCAN_MS = 5000;
+
   const handleAnalyze = async () => {
     if (!file) return;
     setIsAnalyzing(true);
     setAnalysisError(null);
+    const scanStartedAt = Date.now();
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -109,71 +112,148 @@ export function UploadCard() {
     } catch (err) {
       setAnalysisError(err instanceof Error ? err.message : "Analysis failed");
     } finally {
+      const elapsed = Date.now() - scanStartedAt;
+      if (elapsed < MIN_SCAN_MS) {
+        await new Promise((resolve) => setTimeout(resolve, MIN_SCAN_MS - elapsed));
+      }
       setIsAnalyzing(false);
     }
   };
 
-  // ——— Analyzing state ———
+  // ——— Analyzing state — live document scan ———
   if (isAnalyzing) {
-    const CurrentIcon = SCANNING_STEPS[scanStep].icon;
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-2xl mx-auto"
+        className="w-full max-w-3xl mx-auto"
       >
         <div className="relative overflow-hidden rounded-2xl bg-white border border-stone-200 shadow-xl shadow-stone-200/50">
           {/* Progress bar */}
-          <div className="h-1.5 bg-stone-100">
+          <div className="h-1 bg-stone-100">
             <motion.div
               className="h-full bg-primary-600 rounded-r-full"
               initial={{ width: "0%" }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 4, ease: "easeInOut" }}
+              animate={{ width: "92%" }}
+              transition={{ duration: 8, ease: "easeOut" }}
             />
           </div>
 
-          <div className="px-6 sm:px-10 py-12 sm:py-16">
-            {/* Icon */}
-            <div className="flex justify-center mb-8">
-              <motion.div
-                animate={{ scale: [1, 1.05, 1], rotate: [0, 2, -2, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="relative"
-              >
-                <div className="absolute inset-0 bg-primary-400/20 rounded-full blur-2xl scale-150" />
-                <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/30 border border-primary-400/30">
-                  <HeartPulse className="h-10 w-10 text-white" />
-                </div>
-              </motion.div>
-            </div>
+          <div className="grid sm:grid-cols-[260px_1fr] gap-8 items-center px-6 sm:px-10 py-10 sm:py-12">
+            {/* ── Document under the scanner ── */}
+            <div className="relative mx-auto w-[200px] sm:w-[220px]">
+              {/* Viewfinder corner brackets */}
+              <div className="absolute -inset-3 pointer-events-none z-20">
+                <span className="absolute left-0 top-0 h-5 w-5 border-l-2 border-t-2 border-primary-500 rounded-tl" />
+                <span className="absolute right-0 top-0 h-5 w-5 border-r-2 border-t-2 border-primary-500 rounded-tr" />
+                <span className="absolute left-0 bottom-0 h-5 w-5 border-l-2 border-b-2 border-primary-500 rounded-bl" />
+                <span className="absolute right-0 bottom-0 h-5 w-5 border-r-2 border-b-2 border-primary-500 rounded-br" />
+              </div>
 
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 text-center mb-2">
-              Analyzing your report
-            </h3>
-            <p className="text-sm text-gray-500 text-center mb-8">
-              Our AI is reading and structuring your medical data
-            </p>
+              <div className="relative overflow-hidden rounded-lg border border-stone-200 bg-white shadow-lg aspect-[3/4]">
+                {preview ? (
+                  <img src={preview} alt="Document being scanned" className="absolute inset-0 h-full w-full object-cover" />
+                ) : (
+                  /* Stylized PDF page */
+                  <div className="absolute inset-0 p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-red-600">PDF</span>
+                      <FileText className="h-3.5 w-3.5 text-stone-300" />
+                    </div>
+                    <div className="h-2.5 w-3/4 rounded bg-stone-200 mb-3" />
+                    <div className="space-y-1.5">
+                      {[100, 92, 96, 60, 0, 88, 95, 72, 0, 90, 65].map((w, i) =>
+                        w === 0 ? (
+                          <div key={i} className="h-2" />
+                        ) : (
+                          <div key={i} className="h-1.5 rounded bg-stone-100" style={{ width: `${w}%` }} />
+                        )
+                      )}
+                    </div>
+                    <div className="mt-auto grid grid-cols-3 gap-1.5">
+                      {[...Array(6)].map((_, i) => (
+                        <div key={i} className="h-3 rounded bg-primary-50 border border-primary-100/60" />
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            {/* Step indicator */}
-            <div className="flex items-center justify-center gap-3 py-4 px-5 rounded-xl bg-stone-50 border border-stone-100">
-              <CurrentIcon className="h-5 w-5 text-primary-600 shrink-0" />
-              <span className="text-sm font-medium text-gray-700">
-                {SCANNING_STEPS[scanStep].text}
-              </span>
-            </div>
-
-            <div className="mt-6 flex justify-center gap-1.5">
-              {SCANNING_STEPS.map((_, i) => (
+                {/* Scan beam sweeping the page */}
                 <motion.div
-                  key={i}
-                  layout
-                  className={cn(
-                    "h-1.5 rounded-full transition-colors duration-300",
-                    scanStep >= i ? "w-8 bg-primary-500" : "w-1.5 bg-stone-200"
-                  )}
+                  className="absolute left-0 right-0 z-10 pointer-events-none"
+                  animate={{ top: ["-18%", "96%", "-18%"] }}
+                  transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <div className="h-10 w-full bg-gradient-to-t from-primary-400/30 to-transparent" />
+                  <div className="h-[3px] w-full bg-primary-500 shadow-[0_0_16px_3px_rgba(13,148,136,0.55)]" />
+                  <div className="h-10 w-full bg-gradient-to-b from-primary-400/30 to-transparent" />
+                </motion.div>
+
+                {/* Subtle flicker tint over the whole page */}
+                <motion.div
+                  className="absolute inset-0 z-[5] bg-primary-500/5 pointer-events-none"
+                  animate={{ opacity: [0.2, 0.5, 0.2] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 />
-              ))}
+              </div>
+
+              {/* Filename under the page */}
+              {file && (
+                <p className="mt-3 text-center text-[11px] font-medium text-content-tertiary truncate" title={file.name}>
+                  {file.name}
+                </p>
+              )}
+            </div>
+
+            {/* ── Status column ── */}
+            <div className="text-center sm:text-left">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary-50 border border-primary-200 px-3 py-1 mb-4">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500" />
+                </span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary-700">Scanning document</span>
+              </div>
+
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1.5">
+                Analyzing your report
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Our AI is reading and structuring your medical data
+              </p>
+
+              {/* Step checklist */}
+              <ul className="space-y-2.5 text-left">
+                {SCANNING_STEPS.map((step, i) => {
+                  const StepIcon = step.icon;
+                  const isDone = i < scanStep;
+                  const isCurrent = i === scanStep;
+                  return (
+                    <li
+                      key={i}
+                      className={cn(
+                        "flex items-center gap-2.5 text-sm transition-all duration-300",
+                        isDone ? "text-primary-700" : isCurrent ? "text-gray-900 font-semibold" : "text-stone-400"
+                      )}
+                    >
+                      {isDone ? (
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-primary-600" />
+                      ) : isCurrent ? (
+                        <motion.span
+                          animate={{ scale: [1, 1.15, 1] }}
+                          transition={{ duration: 1, repeat: Infinity }}
+                          className="flex shrink-0"
+                        >
+                          <StepIcon className="h-4 w-4 text-primary-600" />
+                        </motion.span>
+                      ) : (
+                        <StepIcon className="h-4 w-4 shrink-0" />
+                      )}
+                      <span>{step.text}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </div>
         </div>

@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   XCircle,
   X,
+  ChevronsRight,
 } from "lucide-react";
 import { useViewerStore } from "@/stores/useViewerStore";
 import { getOrganById } from "@/data/anatomyData";
@@ -34,6 +35,7 @@ export function DetailsPanel() {
   const setIsComparisonOpen = useViewerStore((s) => s.setIsComparisonOpen);
   const setIsClinicalNotesOpen = useViewerStore((s) => s.setIsClinicalNotesOpen);
   const setIsAiAssistantOpen = useViewerStore((s) => s.setIsAiAssistantOpen);
+  const setIsDetailsExpanded = useViewerStore((s) => s.setIsDetailsExpanded);
 
   const organ = getOrganById(activeOrganId);
 
@@ -43,6 +45,14 @@ export function DetailsPanel() {
       <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-thin">
         {/* ── Top Header Section ────────────────────────────────────── */}
         <div>
+          <button
+            onClick={() => setIsDetailsExpanded(false)}
+            className="mb-2 flex items-center gap-1 text-[10px] font-semibold text-content-tertiary hover:text-content-primary transition-colors"
+            title="Collapse panel"
+          >
+            <ChevronsRight className="w-3.5 h-3.5" />
+            <span>Collapse</span>
+          </button>
           <div className="flex items-start justify-between gap-3">
             <div>
               {/* Category / Sub-badge in Teal */}

@@ -18,8 +18,9 @@ import {
 } from "lucide-react";
 import { OrganSidebar } from "@/components/anatomy/OrganSidebar";
 import { CanvasContainer } from "@/components/anatomy/CanvasContainer";
-import { ViewerToolbar } from "@/components/anatomy/ViewerToolbar";
 import { DetailsPanel } from "@/components/anatomy/DetailsPanel";
+import { OrganMiniCard } from "@/components/anatomy/OrganMiniCard";
+import { ViewerToolbar } from "@/components/anatomy/ViewerToolbar";
 import { MicroscopicViewModal } from "@/components/anatomy/MicroscopicViewModal";
 import { HeartBrainComparisonModal } from "@/components/anatomy/HeartBrainComparisonModal";
 import { CirculationAnimationModal } from "@/components/anatomy/CirculationAnimationModal";
@@ -34,6 +35,7 @@ export function AnatomyPage() {
   const setActiveNavTab = useViewerStore((s) => s.setActiveNavTab);
   const searchQuery = useViewerStore((s) => s.searchQuery);
   const setSearchQuery = useViewerStore((s) => s.setSearchQuery);
+  const isDetailsExpanded = useViewerStore((s) => s.isDetailsExpanded);
 
   const [viewMode, setViewMode] = useState<"fullbody" | "specimen">("fullbody");
   const [isMobileLeftOpen, setIsMobileLeftOpen] = useState(false);
@@ -169,7 +171,7 @@ export function AnatomyPage() {
               flex-shrink-0 h-full
             `}
           >
-            <DetailsPanel />
+            {isDetailsExpanded ? <DetailsPanel /> : <OrganMiniCard />}
           </div>
         </div>
       )}
