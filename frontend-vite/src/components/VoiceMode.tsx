@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { transcribeAudio, synthesizeSpeech } from "@/lib/api";
+import { VoiceDoctorAvatar } from "@/components/VoiceDoctorAvatar";
 
 type VoiceState = "idle" | "listening" | "processing" | "speaking";
 
@@ -267,90 +268,45 @@ export function VoiceMode({ onClose, onSendMessage }: VoiceModeProps) {
     : state === "speaking" ? "Speaking — tap to interrupt"
     : "Tap the orb to talk";
 
-  const orbScale =
-    state === "listening" ? 1 + Math.min(level * 1.6, 0.25)
-    : 1;
-
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      initial={{ opacity: 0, y: 12, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 10, scale: 0.98 }}
+      exit={{ opacity: 0, y: 12, scale: 0.96 }}
       transition={{ duration: 0.18 }}
-      className="mx-auto mb-2.5 flex w-full max-w-sm items-center gap-3.5 rounded-2xl border border-stone-200 bg-white/95 backdrop-blur-md p-2.5 pr-1.5 shadow-cardHover"
+      className="relative mx-auto mb-1 flex w-fit flex-col items-center"
       role="dialog"
       aria-label="Voice conversation"
     >
-      {/* Orb */}
-      <button onClick={handleOrbTap} className="relative shrink-0 outline-none" aria-label={statusLabel}>
-        {/* Soft ambient halo */}
+      {/* 3D doctor — no card, just the model */}
+      <button onClick={handleOrbTap} className="relative outline-none" aria-label={statusLabel}>
+        {/* Soft ground glow */}
         <motion.div
-          className="absolute -inset-2 rounded-full bg-teal-300/40 blur-lg"
+          className="absolute inset-x-3 bottom-2 h-8 rounded-[100%] bg-teal-300/35 blur-lg"
           animate={{
-            opacity: state === "speaking" ? [0.5, 0.9, 0.5] : [0.3, 0.55, 0.3],
-            scale: state === "speaking" ? [1, 1.18, 1] : [1, 1.08, 1],
+            opacity: state === "speaking" ? [0.5, 0.9, 0.5] : [0.25, 0.5, 0.25],
+            scale: state === "speaking" ? [1, 1.2, 1] : [1, 1.08, 1],
           }}
           transition={{ duration: state === "speaking" ? 1.1 : 2.8, repeat: Infinity, ease: "easeInOut" }}
         />
+        <div className="relative h-[150px] w-[110px]">
+          <VoiceDoctorAvatar state={state} level={level} className="h-full w-full" />
+        </div>
+      </button>
 
-        {/* Core orb — small, soft cloudy gradient sphere */}
-        <motion.div
-          animate={{
-            scale:
-              state === "listening" ? orbScale
-              : state === "speaking" ? [1, 1.07, 0.97, 1.05, 1]
-              : 1,
-          }}
-          transition={
-            state === "speaking"
-              ? { duration: 1.3, repeat: Infinity, ease: "easeInOut" }
-              : { type: "spring", stiffness: 300, damping: 22 }
-          }
-          className="relative h-12 w-12 rounded-full overflow-hidden shadow-[0_0_20px_-2px_rgba(45,212,191,0.55)]"
-          style={{
-            background:
-              "radial-gradient(circle at 35% 30%, #f0fdfa 0%, #99f6e4 28%, #2dd4bf 62%, #0f766e 100%)",
-          }}
+      {/* Minimal status + close */}
+      <div className="-mt-1 flex items-center gap-1">
+        <p className={`text-[11px] font-medium ${error ? "text-red-500" : "text-content-tertiary"}`}>
+          {error ?? statusLabel}
+        </p>
+        <button
+          onClick={onClose}
+          className="flex h-5 w-5 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-content-primary transition-colors"
+          aria-label="Exit voice mode"
         >
-          {/* Drifting cloud highlight */}
-          <motion.div
-            className="absolute h-[130%] w-[130%] rounded-full bg-white/60 blur-md"
-            animate={{
-              x: ["-25%", "5%", "-15%", "-25%"],
-              y: ["-30%", "-5%", "-25%", "-30%"],
-            }}
-            transition={{ duration: state === "processing" ? 2 : 5, repeat: Infinity, ease: "easeInOut" }}
-          />
-          {/* Deep tint drifting opposite for depth */}
-          <motion.div
-            className="absolute h-[110%] w-[110%] rounded-full bg-teal-700/50 blur-md"
-            animate={{
-              x: ["45%", "25%", "40%", "45%"],
-              y: ["50%", "30%", "45%", "50%"],
-            }}
-            transition={{ duration: state === "processing" ? 2.4 : 6, repeat: Infinity, ease: "easeInOut" }}
-          />
-        </motion.div>
-      </button>
-
-      {/* Status */}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold text-content-primary">{statusLabel}</p>
-        {error ? (
-          <p className="mt-0.5 text-[11px] leading-snug text-red-500 line-clamp-2">{error}</p>
-        ) : (
-          <p className="text-[11px] text-content-tertiary">Voice conversation</p>
-        )}
+          <X className="h-3 w-3" />
+        </button>
       </div>
-
-      {/* Close */}
-      <button
-        onClick={onClose}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-content-primary transition-colors"
-        aria-label="Exit voice mode"
-      >
-        <X className="h-4 w-4" />
-      </button>
     </motion.div>
   );
 }

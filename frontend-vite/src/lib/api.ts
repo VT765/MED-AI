@@ -125,6 +125,62 @@ export async function transcribeAudio(blob: Blob): Promise<{ text: string }> {
   return data as { text: string };
 }
 
+export async function streamChatMessage(
+  message: string,
+  sessionId: string | null,
+  onDelta: (fullText: string) => void
+): Promise<{ session_id: string; reply: string; timestamp: string }> {
+  const token = getAuthToken();
+  const res = await fetch(apiUrl("/api/chat/stream"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ message, session_id: sessionId || null }),
+  });
+  if (!res.ok || !res.body) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || data.message || "Failed to get a response");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let reply = "";
+  let sid = sessionId || "";
+  let ts = new Date().toISOString();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      let evt: any;
+      try {
+        evt = JSON.parse(line.slice(6));
+      } catch {
+        continue;
+      }
+      if (evt.error) throw new Error(evt.error);
+      if (evt.delta) {
+        reply += evt.delta;
+        onDelta(reply);
+      }
+      if (evt.done) {
+        sid = evt.session_id || sid;
+        ts = evt.timestamp || ts;
+      }
+    }
+  }
+
+  if (!reply.trim()) throw new Error("AI returned an empty response. Please try again.");
+  return { session_id: sid, reply, timestamp: ts };
+}
+
 export async function synthesizeSpeech(text: string): Promise<Blob> {
   const res = await fetch(apiUrl("/api/chat/tts"), {
     method: "POST",

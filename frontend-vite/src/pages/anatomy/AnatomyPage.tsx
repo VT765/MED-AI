@@ -20,7 +20,6 @@ import { OrganSidebar } from "@/components/anatomy/OrganSidebar";
 import { CanvasContainer } from "@/components/anatomy/CanvasContainer";
 import { DetailsPanel } from "@/components/anatomy/DetailsPanel";
 import { OrganMiniCard } from "@/components/anatomy/OrganMiniCard";
-import { ViewerToolbar } from "@/components/anatomy/ViewerToolbar";
 import { MicroscopicViewModal } from "@/components/anatomy/MicroscopicViewModal";
 import { HeartBrainComparisonModal } from "@/components/anatomy/HeartBrainComparisonModal";
 import { CirculationAnimationModal } from "@/components/anatomy/CirculationAnimationModal";
@@ -174,7 +173,6 @@ export function AnatomyPage() {
           {/* Middle Column: 3D Viewport */}
           <main className="flex-1 relative overflow-hidden">
             <CanvasContainer />
-            <ViewerToolbar />
           </main>
 
           {/* Right Column: Specimen Details Panel */}

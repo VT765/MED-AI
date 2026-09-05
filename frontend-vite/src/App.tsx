@@ -10,6 +10,7 @@ import { LoginPage } from "@/pages/auth/LoginPage";
 import { SignupPage } from "@/pages/auth/SignupPage";
 import { OnboardingPage } from "@/pages/onboarding/OnboardingPage";
 import { GuestChatPage } from "@/pages/GuestChatPage";
+import { AvatarPreviewPage } from "@/pages/AvatarPreviewPage";
 import { DashboardPage } from "@/pages/dashboard/DashboardPage";
 import { ChatPage } from "@/pages/dashboard/ChatPage";
 import { ReportsPage } from "@/pages/dashboard/ReportsPage";
@@ -35,6 +36,7 @@ function App() {
       <Route path="/auth/signup" element={<SignupPage />} />
       <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/chat" element={<GuestChatPage />} />
+      <Route path="/avatar-preview" element={<AvatarPreviewPage />} />
       <Route path="/anatomy" element={<Navigate to="/dashboard/anatomy" replace />} />
 
       {/* Redirects for removed routes */}

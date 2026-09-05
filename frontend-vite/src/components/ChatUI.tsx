@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope, Mic, Square, ArrowDown, X, AudioLines } from "lucide-react";
+import { Send, Bot, Paperclip, BrainCircuit, FileText, Plus, Loader2, AlertTriangle, LogIn, Stethoscope, Mic, Square, ArrowDown, X, AudioLines, RefreshCw, Copy, Check } from "lucide-react";
 import { VoiceMode } from "@/components/VoiceMode";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -18,6 +18,7 @@ import {
   startNewGuestChat,
   transcribeAudio,
   getSessionHistory,
+  streamChatMessage,
 } from "@/lib/api";
 
 export type ChatMode = "guest" | "authenticated";
@@ -160,6 +161,8 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [isVoiceModeOpen, setIsVoiceModeOpen] = useState(false);
+  const [retryText, setRetryText] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [levels, setLevels] = useState<number[]>(() => new Array(WAVEFORM_BARS).fill(0.08));
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -433,9 +436,9 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
     };
   }, [stopAudioViz]);
 
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
+  const sendText = useCallback(async (trimmed: string) => {
     setInputError(null);
+    setRetryText(null);
     if (!trimmed || isLoading) return;
 
     let messageToSend = trimmed;
@@ -451,29 +454,79 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setIsLoading(true);
 
+    const replyId = `reply-${Date.now()}`;
     try {
-      const response = isGuest
-        ? await sendGuestChatMessage(messageToSend, sessionId)
-        : await sendChatMessage(messageToSend, sessionId);
-      if (response.session_id) setSessionId(response.session_id);
-      const replyId = (Date.now() + 1).toString();
-      setMessages((prev) => [...prev, {
-        id: replyId, role: "assistant",
-        content: response.reply, timestamp: new Date(response.timestamp),
-      }]);
+      if (isGuest) {
+        const response = await sendGuestChatMessage(messageToSend, sessionId);
+        if (response.session_id) setSessionId(response.session_id);
+        setMessages((prev) => [...prev, {
+          id: replyId, role: "assistant",
+          content: response.reply, timestamp: new Date(response.timestamp),
+        }]);
+      } else {
+        // Stream the reply token-by-token into a growing assistant bubble
+        let placeholderAdded = false;
+        const response = await streamChatMessage(messageToSend, sessionId, (fullText) => {
+          setIsLoading(false); // first token arrived — swap dots for real text
+          if (!placeholderAdded) {
+            placeholderAdded = true;
+            setMessages((prev) => [...prev, {
+              id: replyId, role: "assistant", content: fullText, timestamp: new Date(),
+            }]);
+          } else {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === replyId ? { ...m, content: fullText } : m))
+            );
+          }
+        });
+        if (response.session_id) setSessionId(response.session_id);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === replyId
+              ? { ...m, content: response.reply, timestamp: new Date(response.timestamp) }
+              : m
+          )
+        );
+      }
     } catch (err: any) {
+      // Drop a partially-streamed bubble so the retry starts clean
+      setMessages((prev) => prev.filter((m) => m.id !== replyId));
       const errorMessage = err.message?.includes("401") || err.message?.includes("authorized")
         ? "Session expired. Please log in again."
         : err.message || "Failed to get a response. Please try again.";
       setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(), role: "system",
+        id: `err-${Date.now()}`, role: "system",
         content: `⚠️ ${errorMessage}`, timestamp: new Date(),
       }]);
+      setRetryText(trimmed);
     } finally {
       setIsLoading(false);
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
-  }, [input, isLoading, sessionId, extractedDocText, isGuest]);
+  }, [isLoading, sessionId, extractedDocText, isGuest]);
+
+  const handleSend = useCallback(() => {
+    sendText(input.trim());
+  }, [input, sendText]);
+
+  const handleRetry = useCallback(() => {
+    if (!retryText || isLoading) return;
+    // Remove the previous failed user message + error bubble before resending
+    setMessages((prev) => {
+      const next = [...prev];
+      while (next.length > 0) {
+        const last = next[next.length - 1];
+        if (last.role === "system" && last.id.startsWith("err-")) { next.pop(); continue; }
+        if (last.role === "user" && last.content === retryText) { next.pop(); break; }
+        break;
+      }
+      return next;
+    });
+    const text = retryText;
+    setRetryText(null);
+    // Defer so the message-list cleanup lands before the resend appends
+    setTimeout(() => sendText(text), 0);
+  }, [retryText, isLoading, sendText]);
 
   // Voice mode: send a spoken turn through the chat, mirror it into the
   // transcript, and return the reply text for TTS playback.
@@ -692,13 +745,23 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
               const isSystem = msg.role === "system";
 
               if (isSystem) {
+                const canRetry = msg.id.startsWith("err-") && !!retryText && !isLoading;
                 return (
-                  <motion.div key={msg.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex justify-center my-1">
+                  <motion.div key={msg.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-1.5 my-1">
                     <div className={cn("rounded-full px-4 py-1.5 text-xs font-medium max-w-[90%] text-center",
                       msg.content.startsWith("⚠️") ? "bg-red-50 border border-red-200 text-red-600" : "bg-stone-100 border border-stone-200 text-stone-500"
                     )}>
                       {msg.content}
                     </div>
+                    {canRetry && (
+                      <button
+                        onClick={handleRetry}
+                        className="flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold text-content-secondary hover:border-primary-300 hover:text-primary-700 transition-colors shadow-xs"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Try again
+                      </button>
+                    )}
                   </motion.div>
                 );
               }
@@ -723,10 +786,29 @@ export function ChatUI({ mode = "authenticated", requestedSessionId }: ChatUIPro
                         <MessageMarkdown content={msg.content} />
                       )}
                     </div>
-                    <span className={cn(
-                      "mt-1 px-1 text-[10px] font-medium text-content-tertiary opacity-0 transition-opacity group-hover:opacity-100"
-                    )}>
-                      {formatTime(msg.timestamp)}
+                    <span className="mt-1 flex items-center gap-1.5 px-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <span className="text-[10px] font-medium text-content-tertiary">
+                        {formatTime(msg.timestamp)}
+                      </span>
+                      {!isUser && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard?.writeText(msg.content).then(() => {
+                              setCopiedId(msg.id);
+                              setTimeout(() => setCopiedId(null), 1500);
+                            });
+                          }}
+                          className="rounded p-0.5 text-content-tertiary hover:text-primary-600 transition-colors"
+                          title="Copy message"
+                          aria-label="Copy message"
+                        >
+                          {copiedId === msg.id ? (
+                            <Check className="h-3 w-3 text-primary-600" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                      )}
                     </span>
                   </div>
                 </motion.div>
