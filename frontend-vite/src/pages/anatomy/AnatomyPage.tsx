@@ -75,18 +75,7 @@ export function AnatomyPage() {
                 <span>🔬</span>
                 <span>Specimen Lab</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("fullbody")}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                  viewMode === "fullbody"
-                    ? "bg-white text-primary-700 shadow-xs ring-1 ring-stone-200/60"
-                    : "text-stone-500 hover:text-stone-900"
-                }`}
-              >
-                <span>🧬</span>
-                <span>Full Body 3D</span>
-              </button>
+
             </div>
           </div>
         </div>
